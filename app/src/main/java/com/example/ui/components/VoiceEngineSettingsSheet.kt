@@ -157,14 +157,14 @@ fun VoiceEngineSettingsSheet(
                     .weight(1f, fill = false),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Section 1: Conversational Mode Toggle
+                // Section 1: Gemini Live Cloud Engine Status
                 item {
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = JarvisCardBg,
                         border = androidx.compose.foundation.BorderStroke(
                             1.dp,
-                            if (isGeminiLiveMode) JarvisCyan.copy(alpha = 0.6f) else JarvisEmerald.copy(alpha = 0.6f)
+                            JarvisCyan.copy(alpha = 0.6f)
                         ),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -179,39 +179,43 @@ fun VoiceEngineSettingsSheet(
                                     modifier = Modifier.weight(1f)
                                 ) {
                                     Icon(
-                                        imageVector = if (isGeminiLiveMode) Icons.Default.AutoAwesome else Icons.Default.Security,
+                                        imageVector = Icons.Default.AutoAwesome,
                                         contentDescription = null,
-                                        tint = if (isGeminiLiveMode) JarvisCyan else JarvisEmerald,
+                                        tint = com.example.ui.theme.JarvisPurpleLight,
                                         modifier = Modifier.size(24.dp)
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Column {
                                         Text(
-                                            text = if (isGeminiLiveMode) "Gemini Live Voice Engine" else "Pure On-Device Privacy Mode",
+                                            text = "Gemini Live Cloud Engine",
                                             style = MaterialTheme.typography.titleMedium.copy(
                                                 fontWeight = FontWeight.Bold,
                                                 color = JarvisTextPrimary
                                             )
                                         )
                                         Text(
-                                            text = if (isGeminiLiveMode) "Real-time generative speech synthesis & reasoning" else "100% offline local processing, zero internet packets",
+                                            text = "Dynamic model selection • Friendly Bengali Persona",
                                             style = MaterialTheme.typography.bodySmall.copy(
-                                                color = if (isGeminiLiveMode) JarvisCyan else JarvisEmerald
+                                                color = JarvisCyan
                                             )
                                         )
                                     }
                                 }
-                                Switch(
-                                    checked = isGeminiLiveMode,
-                                    onCheckedChange = onGeminiLiveModeToggle,
-                                    modifier = Modifier.testTag("gemini_live_toggle"),
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = JarvisCyan,
-                                        checkedTrackColor = JarvisCyan.copy(alpha = 0.35f),
-                                        uncheckedThumbColor = JarvisEmerald,
-                                        uncheckedTrackColor = JarvisEmerald.copy(alpha = 0.25f)
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(com.example.ui.theme.JarvisPurple.copy(alpha = 0.2f))
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                                ) {
+                                    Text(
+                                        text = "LIVE CLOUD",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = com.example.ui.theme.JarvisPurpleLight,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 9.sp
+                                        )
                                     )
-                                )
+                                }
                             }
                         }
                     }
@@ -259,7 +263,7 @@ fun VoiceEngineSettingsSheet(
                                         .padding(horizontal = 8.dp, vertical = 3.dp)
                                 ) {
                                     Text(
-                                        text = if (apiKey.isNotBlank()) "ACTIVE" else "KEY MISSING",
+                                        text = if (apiKey.isNotBlank()) "ACTIVE" else "KEY REQUIRED",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             color = if (apiKey.isNotBlank()) JarvisEmerald else JarvisAmber,
                                             fontWeight = FontWeight.Bold,
@@ -271,7 +275,7 @@ fun VoiceEngineSettingsSheet(
 
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Required for Live Gemini 1.5 Flash conversational queries.",
+                                text = "Required to connect with the Gemini Live Cloud Engine. Queries will automatically select the best available model.",
                                 style = MaterialTheme.typography.bodySmall.copy(color = JarvisTextMuted)
                             )
 

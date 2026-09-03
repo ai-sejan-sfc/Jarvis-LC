@@ -90,10 +90,11 @@ fun JarvisHeader(
                             fontFamily = FontFamily.Monospace
                         )
                         Text(
-                            text = "LOCAL NEURAL CORE • EDGE AI",
-                            fontSize = 10.sp,
-                            color = JarvisTextSecondary,
-                            letterSpacing = 1.sp,
+                            text = "POWERED BY GEMINI LIVE CLOUD ENGINE",
+                            fontSize = 9.sp,
+                            color = com.example.ui.theme.JarvisPurpleLight,
+                            letterSpacing = 0.5.sp,
+                            fontWeight = FontWeight.SemiBold,
                             fontFamily = FontFamily.Monospace
                         )
                     }
@@ -119,24 +120,6 @@ fun JarvisHeader(
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(6.dp))
-
-                    // Online/Offline simulation toggle button
-                    IconButton(
-                        onClick = onToggleOnline,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(if (isOnline) JarvisEmerald.copy(alpha = 0.15f) else JarvisAmber.copy(alpha = 0.15f))
-                    ) {
-                        Icon(
-                            imageVector = if (isOnline) Icons.Default.CloudDone else Icons.Default.CloudOff,
-                            contentDescription = if (isOnline) "Online Sync Active" else "Offline Local Mode",
-                            tint = if (isOnline) JarvisEmerald else JarvisAmber,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
                     onOpenSettings?.let { openSettings ->
                         Spacer(modifier = Modifier.width(6.dp))
                         IconButton(
@@ -145,11 +128,11 @@ fun JarvisHeader(
                                 .size(36.dp)
                                 .clip(CircleShape)
                                 .background(JarvisSurfaceElevated)
-                                .border(1.dp, JarvisBorder, CircleShape)
+                                .border(1.dp, com.example.ui.theme.JarvisPurple.copy(alpha = 0.5f), CircleShape)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Settings,
-                                contentDescription = "System Preferences",
+                                contentDescription = "API Key & Settings",
                                 tint = JarvisCyan,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -166,19 +149,19 @@ fun JarvisHeader(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 StatusPill(
-                    label = "100% ON-DEVICE",
-                    icon = Icons.Default.Security,
-                    color = JarvisEmerald
+                    label = "GEMINI LIVE ENGINE",
+                    icon = Icons.Default.CloudDone,
+                    color = com.example.ui.theme.JarvisPurpleLight
                 )
                 StatusPill(
-                    label = "AES-256 E2EE",
-                    icon = Icons.Default.Lock,
+                    label = "CLOUD CONNECTED",
+                    icon = Icons.Default.CloudDone,
                     color = JarvisCyan
                 )
                 StatusPill(
-                    label = if (isOnline) "SYNC ACTIVE" else "OFFLINE READY",
-                    icon = if (isOnline) Icons.Default.CloudDone else Icons.Default.CloudOff,
-                    color = if (isOnline) JarvisEmerald else JarvisAmber
+                    label = "BENGALI PERSONA",
+                    icon = Icons.Default.CloudDone,
+                    color = JarvisEmerald
                 )
             }
         }

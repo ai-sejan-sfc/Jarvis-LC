@@ -310,9 +310,9 @@ fun SettingsScreen(
                             )
                             Text(
                                 text = if (offlineOnlyMode)
-                                    "AES-256 local encrypted cache. Gemini Cloud API strictly disconnected."
+                                    "Offline cache active. Gemini Live Cloud Engine temporarily paused."
                                 else
-                                    "Gemini 1.5 Flash cloud intelligence with instant local Nlp failover.",
+                                    "Gemini Live Cloud Engine with dynamic model selection and Bengali persona.",
                                 fontSize = 11.sp,
                                 color = JarvisTextSecondary
                             )
@@ -329,13 +329,13 @@ fun SettingsScreen(
                     ) {
                         Column {
                             Text(
-                                text = "Local Memory & Transcripts",
+                                text = "Chat History & Transcripts",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = JarvisTextPrimary
                             )
                             Text(
-                                text = "AES-256 encrypted chat & speech logs",
+                                text = "Encrypted chat & speech logs",
                                 fontSize = 11.sp,
                                 color = JarvisTextMuted
                             )
@@ -1164,7 +1164,7 @@ fun SettingsScreen(
             onDismissRequest = { showClearLogsDialog = false },
             title = {
                 Text(
-                    text = "Purge Local Neural Memory?",
+                    text = "Purge Chat History?",
                     color = JarvisTextPrimary,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold
@@ -1172,7 +1172,7 @@ fun SettingsScreen(
             },
             text = {
                 Text(
-                    text = "This will clear all in-memory chat messages, recorded voice transcripts, and cache entries. AES-256 local encrypted keystores will remain intact.",
+                    text = "This will clear all in-memory chat messages and recorded voice transcripts.",
                     color = JarvisTextSecondary,
                     fontSize = 13.sp
                 )

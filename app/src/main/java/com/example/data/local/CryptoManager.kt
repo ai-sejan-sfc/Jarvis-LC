@@ -17,7 +17,7 @@ object CryptoManager {
     // 256-bit AES master key derived on-device
     private val masterKeyBytes: ByteArray by lazy {
         val digest = MessageDigest.getInstance("SHA-256")
-        digest.digest("JARVIS_OFFLINE_LOCAL_E2EE_MASTER_KEY_2026_SECURE".toByteArray(Charsets.UTF_8))
+        digest.digest("JARVIS_CLOUD_STREAM_MASTER_KEY_2026_SECURE".toByteArray(Charsets.UTF_8))
     }
 
     private val secretKey: SecretKey by lazy {

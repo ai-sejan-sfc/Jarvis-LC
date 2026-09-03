@@ -287,7 +287,7 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
             CalendarTask(
                 id = "tsk_2",
                 title = "Security Key Rotation Audit",
-                description = "Verify AES-256 cryptographic salts and Keystore hardware tokens.",
+                description = "Verify cryptographic salts and hardware tokens.",
                 timeSlot = "01:00 PM - 02:00 PM",
                 date = "Today",
                 isCompleted = true,
@@ -351,7 +351,7 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
                     RoutineAction("Verify all locks secured", "dev_lock_front", "LOCK"),
                     RoutineAction("Switch Thermostat to Eco 65°F", "dev_thermostat_main", "SET_TEMP"),
                     RoutineAction("Turn off unused appliance plugs", "dev_plug_coffee", "SET_POWER"),
-                    RoutineAction("Activate E2EE Remote Telemetry", null, "VAULT_LOCK")
+                    RoutineAction("Activate Cloud Sync", null, "VAULT_LOCK")
                 ),
                 lastExecuted = "2 days ago"
             ),
@@ -423,7 +423,7 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
                 version = "v1.1.8",
                 isEnabled = true,
                 status = PluginStatus.ACTIVE,
-                sandboxedPermissions = listOf("Calendar Read/Write", "E2EE Storage"),
+                sandboxedPermissions = listOf("Calendar Read/Write", "Secure Storage"),
                 endpointUrl = "https://cloud.local/remote.php/dav/calendars",
                 latencyMs = 19
             )
@@ -441,13 +441,13 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
             recentLogs = listOf(
                 SyncLogEntry("19:34:01", "MUTATION_RECORD", "dev_light_living", "v3:nodeA", "COMMITTED_LOCAL"),
                 SyncLogEntry("19:34:02", "REPLICATE_MESH", "dev_thermostat_main", "v2:hubB", "SYNC_RESOLVED"),
-                SyncLogEntry("19:34:04", "CRYPT_VAULT", "tasks_schema", "v4:keystore", "AES_GCM_VERIFIED")
+                SyncLogEntry("19:34:04", "CLOUD_SYNC", "tasks_schema", "v4:keystore", "STREAM_VERIFIED")
             )
         )
     )
     val syncState: StateFlow<SyncState> = _syncState.asStateFlow()
 
-    // E2EE Cryptographic Vault State
+    // Cryptographic Vault State
     private val _isVaultLocked = MutableStateFlow(false)
     val isVaultLocked: StateFlow<Boolean> = _isVaultLocked.asStateFlow()
 
@@ -456,10 +456,12 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
         listOf(
             ChatMessage(
                 sender = MessageSender.JARVIS,
-                text = "Jarvis Core v2.4 initialized. All requests are processed 100% locally on device with AES-256-GCM encryption. Say 'Brief me' or tap an action below.",
+                text = "J.A.R.V.I.S. ক্লাউড ইঞ্জিনে সক্রিয় হয়েছে। Gemini Live Cloud Engine এর সাথে সফলভাবে সংযুক্ত। আমি আপনাকে কীভাবে সাহায্য করতে পারি? (J.A.R.V.I.S. online. Connected to Gemini Live Cloud Engine. How may I assist you today?)",
                 timestamp = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
-                latencyMs = 11,
-                intentDetected = "SYSTEM_INITIALIZE"
+                latencyMs = 12,
+                intentDetected = "GEMINI_LIVE_CONNECTED",
+                isGeminiLive = true,
+                modelName = "GEMINI LIVE"
             )
         )
     )
@@ -484,22 +486,22 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
             _isGeminiLiveMode.value = false
             val notice = ChatMessage(
                 sender = MessageSender.SYSTEM,
-                text = "🛡️ AIR-GAPPED PRIVACY ENGAGED: Outbound network egress blocked. 100% on-device neural processing with AES-256 local database encryption.",
+                text = "SYSTEM NOTICE: Offline mode engaged. Outbound network disabled.",
                 timestamp = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
-                intentDetected = "AIR_GAP_PRIVACY_ACTIVATED"
+                intentDetected = "OFFLINE_MODE_ACTIVATED"
             )
             _chatMessages.value = _chatMessages.value + notice
-            ttsHelper.speak("Air gapped privacy mode engaged. Operating strictly on device.", _voicePersona.value)
+            ttsHelper.speak("Offline mode engaged.", _voicePersona.value)
         } else {
             _isGeminiLiveMode.value = true
             val notice = ChatMessage(
                 sender = MessageSender.SYSTEM,
-                text = "🌐 HYBRID CLOUD / LOCAL MODE ACTIVE: Gemini Live 1.5 Flash conversational core restored.",
+                text = "GEMINI LIVE ACTIVE: Gemini Live Cloud Engine connected.",
                 timestamp = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
-                intentDetected = "CLOUD_HYBRID_RESTORED"
+                intentDetected = "GEMINI_LIVE_ACTIVE"
             )
             _chatMessages.value = _chatMessages.value + notice
-            ttsHelper.speak("Cloud interfaces restored. Gemini Live online.", _voicePersona.value)
+            ttsHelper.speak("Gemini Live online.", _voicePersona.value)
         }
     }
 
@@ -988,7 +990,7 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
             action = action,
             entity = target,
             vectorClock = "v${(100..999).random()}:local",
-            status = if (_syncState.value.isOnline) "COMMITTED_E2EE" else "QUEUED_OFFLINE"
+            status = if (_syncState.value.isOnline) "COMMITTED_CLOUD" else "QUEUED_OFFLINE"
         )
         val pending = if (!_syncState.value.isOnline) _syncState.value.pendingMutations + 1 else 0
         _syncState.value = _syncState.value.copy(

@@ -219,37 +219,13 @@ class OnDeviceVoiceRecognitionEngine(
     private fun startSimulatedAcousticStream() {
         simulatedListeningJob?.cancel()
         simulatedListeningJob = scope.launch(Dispatchers.Default) {
-            val sampleQueries = when (currentDialect) {
-                DialectProfile.UK_RP -> listOf(
-                    "Jarvis, turn on the living room chandelier please",
-                    "Jarvis, brief me on my daily schedule",
-                    "Jarvis, lock the front door deadbolt",
-                    "Jarvis, set thermostat to 72 degrees",
-                    "Jarvis, run morning routine"
-                )
-                DialectProfile.AUSTRALIAN -> listOf(
-                    "G'day Jarvis, crank the air con to 71 degrees",
-                    "Jarvis, open the studio blinds to 100 percent",
-                    "Jarvis, give me the daily briefing mate",
-                    "Jarvis, check system diagnostics"
-                )
-                DialectProfile.INDIAN_ENGLISH -> listOf(
-                    "Jarvis, please switch on the living room light",
-                    "Jarvis, prepone the schedule review meeting",
-                    "Jarvis, set thermostat to 72 degrees"
-                )
-                DialectProfile.SCOTTISH -> listOf(
-                    "Jarvis, lock the front door right now",
-                    "Jarvis, give me a quick briefing on today's tasks"
-                )
-                else -> listOf(
-                    "Jarvis, turn on the living room lights",
-                    "Jarvis, set the thermostat to 72 degrees",
-                    "Jarvis, brief me on today's agenda",
-                    "Jarvis, execute the morning routine",
-                    "Jarvis, what is the status of the front door deadbolt?"
-                )
-            }
+            val sampleQueries = listOf(
+                "তুমি কেমন আছো?",
+                "আজকের আবহাওয়া কেমন?",
+                "আমাকে বাংলায় একটি সুন্দর অনুপ্রেরণামূলক কথা বলো",
+                "How does the Gemini Live Cloud Engine work?",
+                "আজকের দিনটি সুন্দর করে শুরু করার পরামর্শ দিন"
+            )
 
             val chosenQuery = sampleQueries.random()
 

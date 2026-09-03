@@ -120,11 +120,10 @@ class MicrophoneCaptureService : Service() {
 
         fun simulateWakeWordTrigger(command: String? = null) {
             val phrases = listOf(
-                "Jarvis, what is the status of the living room lights?",
-                "Jarvis, set the thermostat to 72 degrees",
-                "Jarvis, lock all doors and activate perimeter security",
-                "Jarvis, give me the daily briefing and system diagnostics",
-                "Jarvis, execute the good morning routine"
+                "Jarvis, বলুন আজকের দিনটি কেমন যাবে?",
+                "Jarvis, tell me about Gemini Live Cloud Engine",
+                "Jarvis, আমাকে বাংলায় একটি গল্প বলুন",
+                "Jarvis, what can you do for me today?"
             )
             val selected = command ?: phrases.random()
 
@@ -331,14 +330,14 @@ class MicrophoneCaptureService : Service() {
             _captureState.value = CaptureState.PROCESSING_COMMAND
             updateNotificationText("Processing command...")
 
-            val defaultCommand = "Jarvis, check all smart home systems and secure the perimeter"
+            val defaultCommand = "Jarvis, how does the Gemini Live Cloud Engine work?"
             _lastCapturedCommand.value = defaultCommand
             onVoiceCommandCaptured?.invoke(defaultCommand)
 
             delay(600)
             if (_isServiceRunning.value) {
                 _captureState.value = CaptureState.LISTENING_FOR_WAKE_WORD
-                updateNotificationText("Listening for '${_activeWakeWordPhrase.value}' (100% On-Device)")
+                updateNotificationText("Listening for '${_activeWakeWordPhrase.value}' (Gemini Live)")
             }
         }
     }

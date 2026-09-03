@@ -1,6 +1,6 @@
 {
   "name": "Jarvis",
-  "description": "Privacy-first on-device smart home assistant, daily calendar manager, voice briefings, automated routines, and encrypted system dashboard.",
+  "description": "J.A.R.V.I.S. AI assistant powered by Gemini Live Cloud Engine with dynamic model selection and friendly Bengali persona.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

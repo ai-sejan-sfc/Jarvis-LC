@@ -13,9 +13,9 @@ data class SystemHealth(
     val packetLossPercent: Double = 0.0,
     val matterNodesOnline: Int = 8,
     val matterNodesTotal: Int = 8,
-    val e2eeCipher: String = "AES-256-GCM / 256-bit PFS",
+    val e2eeCipher: String = "TLS 1.3 / Cloud Stream",
     val keystoreAlias: String = "JarvisMasterKey_v3",
-    val localNlpEngineVersion: String = "Jarvis-Neural-Edge v2.4 (100% On-Device)",
+    val localNlpEngineVersion: String = "Gemini Live Cloud Engine v1.0",
     val lastSyncTimestamp: String = "Just now",
     val isPeerSyncActive: Boolean = true
 )

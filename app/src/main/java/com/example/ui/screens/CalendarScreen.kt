@@ -162,7 +162,7 @@ fun CalendarScreen(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Zero Cloud Leakage • Stored Locally with AES-256-GCM",
+                                text = "Synced with Gemini Live Cloud Engine",
                                 fontSize = 10.sp,
                                 color = JarvisTextMuted,
                                 fontFamily = FontFamily.Monospace

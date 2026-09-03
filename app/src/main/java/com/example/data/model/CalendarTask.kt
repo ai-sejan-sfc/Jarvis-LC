@@ -23,5 +23,5 @@ data class CalendarTask(
     val priority: TaskPriority = TaskPriority.MEDIUM,
     val category: TaskCategory = TaskCategory.WORK,
     val isEncrypted: Boolean = true,
-    val cipherTag: String = "AES-256-GCM"
+    val cipherTag: String = "CLOUD-SECURE"
 )

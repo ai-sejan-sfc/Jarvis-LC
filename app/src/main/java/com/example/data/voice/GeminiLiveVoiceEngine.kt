@@ -233,21 +233,8 @@ class GeminiLiveVoiceEngine {
         val modelPath = if (selectedModel.startsWith("models/")) selectedModel else "models/$selectedModel"
         val postUrl = "https://generativelanguage.googleapis.com/v1beta/$modelPath:generateContent?key=$apiKey"
 
-        // Strict Friendly Bengali Persona instruction mandated by the prompt
-        val bengaliSystemInstruction = "You are a highly advanced, yet incredibly warm, friendly, and supportive AI assistant. You must always communicate and respond to the user exclusively in friendly, conversational Bengali language, maintaining a polite and helpful tone."
-
-        val systemPrompt = buildString {
-            append(bengaliSystemInstruction)
-            append("\n\nSmart Home Integration & Execution Directives:\n")
-            append("You also control the user's smart home devices, automated routines, and calendar. Whenever the user asks to control devices or trigger routines (such as switching lights on/off, adjusting temperature, locking doors, or running morning/night routines), respond in warm, polite, and helpful conversational Bengali and append the corresponding action tags at the end of your response:\n")
-            append("[ACTION:POWER:dev_id:true/false], [ACTION:TEMP:dev_id:temp_value], [ACTION:LOCK:dev_id:true/false], [ACTION:BLINDS:dev_id:percent], [ACTION:ROUTINE:routine_id]\n")
-            append("Connected Smart Home Devices:\n")
-            devices.forEach { dev ->
-                append("- ${dev.name} [ID: ${dev.id}, Type: ${dev.type}, Powered: ${dev.isPowered}, Level: ${dev.level}%, Temp: ${dev.targetTemperatureF}F, Locked: ${dev.isLocked}]\n")
-            }
-            append("Pending Tasks: ${tasks.count { !it.isCompleted }}\n")
-            append("System Status: Ping ${health.pingMs}ms, CPU ${health.cpuPercent}%\n")
-        }
+        // Exact Friendly Bengali Persona system instruction mandated by user instructions
+        val bengaliSystemInstruction = "You are J.A.R.V.I.S., powered by the Gemini Live engine. You are a highly advanced, warm, friendly, and supportive AI assistant. You must always communicate and respond to the user exclusively in friendly, conversational Bengali language."
 
         val jsonBody = JSONObject().apply {
             // contents
@@ -264,7 +251,7 @@ class GeminiLiveVoiceEngine {
             // systemInstruction with the friendly Bengali persona
             val sysInstructionObj = JSONObject().apply {
                 val sysParts = JSONArray()
-                sysParts.put(JSONObject().apply { put("text", systemPrompt) })
+                sysParts.put(JSONObject().apply { put("text", bengaliSystemInstruction) })
                 put("parts", sysParts)
             }
             put("systemInstruction", sysInstructionObj)

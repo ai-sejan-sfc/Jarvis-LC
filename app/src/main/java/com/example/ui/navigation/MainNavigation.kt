@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.JarvisHeader
+import com.example.ui.components.VoiceEngineSettingsSheet
 import com.example.ui.screens.AssistantScreen
 import com.example.ui.screens.CalendarScreen
 import com.example.ui.screens.DashboardScreen
@@ -80,9 +81,17 @@ fun MainNavigation(
     viewModel: JarvisViewModel,
     modifier: Modifier = Modifier
 ) {
-    var currentDestination by remember { mutableStateOf(JarvisDestination.ASSISTANT) }
     val syncState by viewModel.syncState.collectAsState()
     val isSpeaking by viewModel.isSpeaking.collectAsState()
+    val voiceSettingsOpen by viewModel.voiceSettingsOpen.collectAsState()
+    val voicePersona by viewModel.voicePersona.collectAsState()
+    val dialect by viewModel.dialect.collectAsState()
+    val noiseFilter by viewModel.noiseFilter.collectAsState()
+    val isGeminiLiveMode by viewModel.isGeminiLiveMode.collectAsState()
+    val customApiKey by viewModel.customApiKey.collectAsState()
+    val liveRmsDb by viewModel.liveRmsDb.collectAsState()
+    val ambientNoiseFloorDb by viewModel.ambientNoiseFloorDb.collectAsState()
+    val snrDb by viewModel.snrDb.collectAsState()
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -93,47 +102,8 @@ fun MainNavigation(
                 isSpeaking = isSpeaking,
                 onToggleOnline = { viewModel.toggleOnlineSync() },
                 onStopSpeaking = { viewModel.stopSpeaking() },
-                onOpenSettings = { currentDestination = JarvisDestination.SETTINGS }
+                onOpenSettings = { viewModel.setVoiceSettingsOpen(true) }
             )
-        },
-        bottomBar = {
-            NavigationBar(
-                modifier = Modifier
-                    .navigationBarsPadding()
-                    .testTag("main_bottom_nav"),
-                containerColor = JarvisSurface,
-                tonalElevation = 6.dp
-            ) {
-                JarvisDestination.values().forEach { dest ->
-                    val isSelected = currentDestination == dest
-                    NavigationBarItem(
-                        selected = isSelected,
-                        onClick = { currentDestination = dest },
-                        icon = {
-                            Icon(
-                                imageVector = if (isSelected) dest.selectedIcon else dest.unselectedIcon,
-                                contentDescription = dest.label,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = dest.label,
-                                fontSize = 10.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = JarvisBackground,
-                            selectedTextColor = JarvisCyan,
-                            indicatorColor = JarvisCyan,
-                            unselectedIconColor = JarvisTextMuted,
-                            unselectedTextColor = JarvisTextMuted
-                        )
-                    )
-                }
-            }
         }
     ) { innerPadding ->
         Box(
@@ -141,20 +111,25 @@ fun MainNavigation(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            AnimatedContent(
-                targetState = currentDestination,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "ScreenTransition"
-            ) { dest ->
-                when (dest) {
-                    JarvisDestination.ASSISTANT -> AssistantScreen(viewModel = viewModel)
-                    JarvisDestination.SMART_HOME -> SmartHomeScreen(viewModel = viewModel)
-                    JarvisDestination.CALENDAR -> CalendarScreen(viewModel = viewModel)
-                    JarvisDestination.ROUTINES -> RoutinesScreen(viewModel = viewModel)
-                    JarvisDestination.HEALTH -> DashboardScreen(viewModel = viewModel)
-                    JarvisDestination.SECURITY -> SecurityPluginsScreen(viewModel = viewModel)
-                    JarvisDestination.SETTINGS -> SettingsScreen(viewModel = viewModel)
-                }
+            AssistantScreen(viewModel = viewModel)
+
+            if (voiceSettingsOpen) {
+                VoiceEngineSettingsSheet(
+                    isGeminiLiveMode = isGeminiLiveMode,
+                    selectedPersona = voicePersona,
+                    selectedDialect = dialect,
+                    selectedNoiseFilter = noiseFilter,
+                    liveRmsDb = liveRmsDb,
+                    ambientNoiseFloorDb = ambientNoiseFloorDb,
+                    snrDb = snrDb,
+                    apiKey = customApiKey,
+                    onApiKeyChange = { viewModel.setCustomApiKey(it) },
+                    onGeminiLiveModeToggle = { viewModel.setGeminiLiveMode(it) },
+                    onSelectPersona = { viewModel.setVoicePersona(it) },
+                    onSelectDialect = { viewModel.setDialect(it) },
+                    onSelectNoiseFilter = { viewModel.setNoiseFilter(it) },
+                    onDismiss = { viewModel.setVoiceSettingsOpen(false) }
+                )
             }
         }
     }

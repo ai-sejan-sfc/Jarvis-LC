@@ -12,7 +12,7 @@ data class SyncState(
     val isOnline: Boolean = true,
     val pendingMutations: Int = 0,
     val lastSyncTimestamp: String = "19:34:00",
-    val syncTarget: String = "Matter Hub + E2EE Storage Vault",
+    val syncTarget: String = "Gemini Live Cloud Sync",
     val conflictCount: Int = 0,
     val recentLogs: List<SyncLogEntry> = emptyList()
 )

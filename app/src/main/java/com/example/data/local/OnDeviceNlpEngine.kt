@@ -49,19 +49,18 @@ object OnDeviceNlpEngine {
             val highPriority = pendingTasks.filter { it.priority == TaskPriority.HIGH }
 
             val response = buildString {
-                append("Good day, sir. Here is your on-device system summary:\n")
+                append("Good day, sir. Here is your system summary:\n")
                 append("• Calendar: ${pendingTasks.size} pending tasks scheduled for today")
                 if (highPriority.isNotEmpty()) {
                     append(" (${highPriority.size} marked High Priority: '${highPriority.first().title}')")
                 }
                 append(".\n")
-                append("• Smart Home: ${activeDevices.size} active endpoints running on local Matter mesh.\n")
-                append("• System Perimeter: Cryptographic vault is locked with AES-256-GCM. Hub latency is ${health.pingMs}ms.")
+                append("• Cloud Engine: Connected to Gemini Live Cloud Engine. Latency is ${health.pingMs}ms.")
             }
 
             val spoken = "Good day, sir. You have ${pendingTasks.size} pending tasks today. " +
                     if (highPriority.isNotEmpty()) "Top priority is ${highPriority.first().title}. " else "" +
-                    "All smart home perimeters are secure, and local latency is ${health.pingMs} milliseconds."
+                    "Gemini Live Cloud Engine is ready, and latency is ${health.pingMs} milliseconds."
 
             val latency = (System.nanoTime() - startTime) / 1_000_000
             return NlpResult(
@@ -219,8 +218,8 @@ object OnDeviceNlpEngine {
                 priority = if (isHighPriority) TaskPriority.HIGH else TaskPriority.MEDIUM,
                 category = if (query.contains("home")) TaskCategory.HOME else TaskCategory.WORK
             )
-            val resp = "Task scheduled: '${newTask.title}' [${newTask.priority.label}]. Encrypted with AES-256-GCM."
-            val spoken = "Task ${newTask.title} has been encrypted and added to your schedule."
+            val resp = "Task scheduled: '${newTask.title}' [${newTask.priority.label}]."
+            val spoken = "Task ${newTask.title} has been added to your schedule."
             val latency = (System.nanoTime() - startTime) / 1_000_000
             return NlpResult(
                 intent = "CREATE_CALENDAR_TASK",
@@ -233,9 +232,9 @@ object OnDeviceNlpEngine {
             )
         }
 
-        // 5. System Health / Security Diagnostics
-        if (query.contains("system health") || query.contains("diagnostic") || query.contains("vault") || query.contains("ping") || query.contains("status")) {
-            val resp = "System Diagnostics:\n• CPU Load: ${health.cpuPercent}%\n• RAM: ${health.ramUsedMb}MB / ${health.ramTotalMb}MB\n• E2EE Vault: Active (${health.e2eeCipher})\n• Hub Latency: ${health.pingMs}ms (${health.packetLossPercent}% loss)"
+        // 5. System Health Diagnostics
+        if (query.contains("system health") || query.contains("diagnostic") || query.contains("ping") || query.contains("status")) {
+            val resp = "System Diagnostics:\n• CPU Load: ${health.cpuPercent}%\n• RAM: ${health.ramUsedMb}MB / ${health.ramTotalMb}MB\n• Engine: Gemini Live Cloud Engine\n• Latency: ${health.pingMs}ms"
             val spoken = "All internal systems are functioning within normal parameters, sir. Latency is ${health.pingMs} milliseconds."
             val latency = (System.nanoTime() - startTime) / 1_000_000
             return NlpResult(

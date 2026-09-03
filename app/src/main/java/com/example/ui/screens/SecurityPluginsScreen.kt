@@ -91,7 +91,7 @@ fun SecurityPluginsScreen(
     ) {
         item { Spacer(modifier = Modifier.height(10.dp)) }
 
-        // Section 1: E2EE Cryptographic Vault
+        // Section 1: Cryptographic Vault
         item {
             Card(
                 colors = CardDefaults.cardColors(containerColor = JarvisSurface),
@@ -106,7 +106,7 @@ fun SecurityPluginsScreen(
                     ) {
                         Column {
                             Text(
-                                text = "END-TO-END ENCRYPTION (E2EE)",
+                                text = "CLOUD SECURITY VAULT",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = JarvisCyan,
@@ -154,7 +154,7 @@ fun SecurityPluginsScreen(
                             .padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        VaultSpecRow(title = "Cipher Suite", value = "AES-256-GCM / Galois Auth Tag 128-bit")
+                        VaultSpecRow(title = "Cipher Suite", value = "TLS 1.3 / Cloud Stream Encryption")
                         VaultSpecRow(title = "Key Provider", value = "Android Keystore (Hardware Backed)")
                         VaultSpecRow(title = "Key Fingerprint", value = CryptoManager.getKeyFingerprint())
                         VaultSpecRow(title = "Integrity Check", value = "SHA-256 HMAC Verified")
@@ -203,7 +203,7 @@ fun SecurityPluginsScreen(
                     ) {
                         Icon(imageVector = Icons.Default.Key, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Test AES-256-GCM Roundtrip", fontWeight = FontWeight.Bold)
+                        Text("Test Stream Encryption Roundtrip", fontWeight = FontWeight.Bold)
                     }
 
                     if (encryptedCipherOutput.isNotBlank()) {

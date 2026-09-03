@@ -177,10 +177,10 @@ fun AssistantScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (isGeminiLiveMode) "GEMINI LIVE • ${voicePersona.displayName}" else "100% LOCAL PRIVACY",
+                        text = "GEMINI LIVE • ${voicePersona.displayName}",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isGeminiLiveMode) Color(0xFFD1C4E9) else JarvisEmerald,
+                        color = Color(0xFFD1C4E9),
                         fontFamily = FontFamily.Monospace
                     )
                 }
@@ -191,7 +191,7 @@ fun AssistantScreen(
                         .size(34.dp)
                         .clip(CircleShape)
                         .background(JarvisSurfaceElevated)
-                        .border(1.dp, JarvisBorder, CircleShape)
+                        .border(1.dp, com.example.ui.theme.JarvisPurple.copy(alpha = 0.5f), CircleShape)
                         .testTag("open_voice_settings_btn")
                 ) {
                     Icon(
@@ -220,14 +220,14 @@ fun AssistantScreen(
             // State indicator pill
             val statusText = when {
                 isThinking -> "GEMINI LIVE SYNTHESIZING..."
-                isListening -> "ON-DEVICE RECOGNIZING • SPEAK NOW"
-                isSpeaking -> "VOCALIZING RESPONSE..."
-                else -> "${dialect.displayName.uppercase()} • TAP TO CONVERSE"
+                isListening -> "GEMINI LIVE LISTENING • SPEAK NOW"
+                isSpeaking -> "GEMINI LIVE VOCALIZING..."
+                else -> "GEMINI LIVE ENGINE • READY"
             }
             val statusColor = when {
                 isThinking -> Color(0xFFB388FF)
-                isListening -> JarvisAmber
-                isSpeaking -> if (isGeminiLiveMode) Color(0xFF00E5FF) else JarvisCyanLight
+                isListening -> JarvisCyanLight
+                isSpeaking -> com.example.ui.theme.JarvisPurple
                 else -> JarvisCyan
             }
 
@@ -243,7 +243,7 @@ fun AssistantScreen(
                         isThinking -> Icons.Default.Psychology
                         isSpeaking -> Icons.Default.RecordVoiceOver
                         isListening -> Icons.Default.GraphicEq
-                        else -> Icons.Default.Hearing
+                        else -> Icons.Default.AutoAwesome
                     },
                     contentDescription = null,
                     tint = statusColor,
@@ -269,7 +269,7 @@ fun AssistantScreen(
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     color = Color(0xFF0D1B2A),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, JarvisAmber.copy(alpha = 0.6f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, JarvisCyan.copy(alpha = 0.6f)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 6.dp)
@@ -285,69 +285,24 @@ fun AssistantScreen(
                                     modifier = Modifier
                                         .size(7.dp)
                                         .clip(CircleShape)
-                                        .background(JarvisAmber)
+                                        .background(JarvisCyan)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "LIVE SPEECH STREAM",
+                                    text = "VOICE INPUT STREAM",
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = JarvisAmber,
+                                    color = JarvisCyan,
                                     fontFamily = FontFamily.Monospace
                                 )
                             }
-                            Text(
-                                text = "SNR: ${"%.1f".format(snrDb)}dB • RMS: ${"%.0f".format(liveRmsDb)}dB",
-                                fontSize = 9.sp,
-                                color = JarvisTextSecondary,
-                                fontFamily = FontFamily.Monospace
-                            )
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = if (livePartialTranscript.isNotBlank()) "\"$livePartialTranscript\"" else "Awaiting acoustic input...",
+                            text = if (livePartialTranscript.isNotBlank()) "\"$livePartialTranscript\"" else "Listening for speech...",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
                             color = JarvisTextPrimary
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Quick Voice Command Trigger Chips
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                val chips = listOf(
-                    "Brief me on today's schedule",
-                    "Turn on the living room chandelier",
-                    "Set thermostat to 72 degrees",
-                    "Lock the front door deadbolt",
-                    "Run Morning Routine",
-                    "Open studio blinds to 100%",
-                    "Who are you and what can you do?"
-                )
-                chips.forEach { chipText ->
-                    Box(
-                        modifier = Modifier
-                            .border(0.8.dp, JarvisBorder, RoundedCornerShape(20.dp))
-                            .background(JarvisSurfaceVariant, RoundedCornerShape(20.dp))
-                            .clickable {
-                                viewModel.submitQuery(chipText)
-                            }
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            text = chipText,
-                            fontSize = 12.sp,
-                            color = JarvisTextPrimary,
-                            fontFamily = FontFamily.SansSerif
                         )
                     }
                 }
@@ -424,7 +379,7 @@ fun AssistantScreen(
                     onValueChange = { viewModel.updateInputQuery(it) },
                     placeholder = {
                         Text(
-                            text = if (isListening) "Listening to voice... transcribing" else if (isGeminiLiveMode) "Ask J.A.R.V.I.S. in Bengali or smart home command..." else "Ask Jarvis or give smart home command...",
+                            text = if (isListening) "Listening to voice... transcribing" else "Ask Gemini Live anything...",
                             fontSize = 13.sp,
                             color = if (isListening) Color(0xFFFF5252) else JarvisTextMuted
                         )
@@ -613,9 +568,9 @@ fun ChatMessageItem(
                                     )
                                 } else if (message.latencyMs != null) {
                                     Text(
-                                        text = "${message.latencyMs}ms • 100% LOCAL",
+                                        text = "${message.latencyMs}ms • GEMINI LIVE",
                                         fontSize = 9.sp,
-                                        color = JarvisEmerald,
+                                        color = JarvisCyan,
                                         fontFamily = FontFamily.Monospace
                                     )
                                 }

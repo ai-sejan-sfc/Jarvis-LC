@@ -88,17 +88,17 @@ fun ArcReactorWaveform(
 
     // Dynamic color based on state
     val coreColor = when {
-        isThinking -> Color(0xFFB388FF) // Luminous purple/violet for Gemini Live neural synthesis
-        isListening -> JarvisAmber
-        isSpeaking -> if (isGeminiLive) Color(0xFF64FFDA) else JarvisCyanLight
-        isGeminiLive -> Color(0xFF00E5FF)
+        isThinking -> com.example.ui.theme.JarvisPurpleLight // Luminous neon purple for Gemini Live synthesis
+        isListening -> JarvisCyanLight
+        isSpeaking -> com.example.ui.theme.JarvisPurple
+        isGeminiLive -> JarvisCyan
         else -> JarvisCyan
     }
 
     val glowColor = when {
-        isThinking -> Color(0xFF7C4DFF).copy(alpha = 0.45f)
-        isListening -> JarvisAmber.copy(alpha = 0.35f)
-        isSpeaking -> (if (isGeminiLive) Color(0xFF00E5FF) else JarvisCyan).copy(alpha = 0.4f)
+        isThinking -> com.example.ui.theme.JarvisPurpleGlow
+        isListening -> JarvisCyan.copy(alpha = 0.45f)
+        isSpeaking -> com.example.ui.theme.JarvisPurple.copy(alpha = 0.5f)
         else -> JarvisCyanGlow
     }
 
