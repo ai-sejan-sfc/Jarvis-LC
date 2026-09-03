@@ -156,12 +156,8 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
 
         MicrophoneCaptureService.updateWakeWordConfig(_wakeWordPhrase.value, _wakeWordSensitivity.value)
         MicrophoneCaptureService.onVoiceCommandCaptured = { voiceCommand ->
-            submitQuery(
-                rawQuery = voiceCommand,
-                fromVoice = true,
-                dialect = _dialect.value,
-                confidence = 0.95f
-            )
+            // Crucial: Populate the text input field instantly, do not auto-submit
+            _inputQuery.value = voiceCommand
         }
 
         if (_hasMicPermission.value && _wakeWordEnabled.value) {
@@ -695,13 +691,16 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
                         text = liveResponse.conversationalText,
                         timestamp = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
                         latencyMs = liveResponse.latencyMs,
-                        intentDetected = if (liveResponse.isError) "SYSTEM_ALERT" else if (liveResponse.isLiveApi) "GEMINI_LIVE_CONVERSATION" else "LOCAL_CONVERSATION_FALLBACK",
-                        isSpoken = true,
-                        isGeminiLive = liveResponse.isLiveApi
+                        intentDetected = if (liveResponse.isError) "SYSTEM_ALERT" else if (liveResponse.isLiveApi) "DYNAMIC_GEMINI_AI" else "LOCAL_CONVERSATION_FALLBACK",
+                        isSpoken = !liveResponse.isError,
+                        isGeminiLive = liveResponse.isLiveApi,
+                        modelName = liveResponse.selectedModelName
                     )
                     _chatMessages.value = _chatMessages.value + jarvisMsg
 
-                    ttsHelper.speak(liveResponse.spokenText, _voicePersona.value)
+                    if (!liveResponse.isError) {
+                        ttsHelper.speak(liveResponse.spokenText, _voicePersona.value)
+                    }
                 } else {
                     // On-device privacy processing
                     delay(120) // Micro feedback delay
@@ -778,13 +777,13 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
             onDeviceVoiceEngine.startListening(
                 dialect = _dialect.value,
                 noiseFilter = _noiseFilter.value,
-                onPartial = { partial ->
-                    // Real-time speech transcription into text input field
-                    _inputQuery.value = partial
+                onPartial = {
+                    // Do not auto-type simulated characters; wait for final recognition result
                 },
                 onResult = { result ->
-                    // Auto-fill the text input field with the final transcribed text
+                    // Instantly populate the text input field with the final transcribed text
                     _inputQuery.value = result.normalizedTranscript
+                    // Crucial: Do not automatically send or submit. System waits for user to manually click "Send"
                 }
             )
         }

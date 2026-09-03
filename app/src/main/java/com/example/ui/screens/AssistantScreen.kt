@@ -424,7 +424,7 @@ fun AssistantScreen(
                     onValueChange = { viewModel.updateInputQuery(it) },
                     placeholder = {
                         Text(
-                            text = if (isListening) "Listening to voice... transcribing" else if (isGeminiLiveMode) "Ask J.A.R.V.I.S. (Gemini 1.5 Flash)..." else "Ask Jarvis or give smart home command...",
+                            text = if (isListening) "Listening to voice... transcribing" else if (isGeminiLiveMode) "Ask J.A.R.V.I.S. in Bengali or smart home command..." else "Ask Jarvis or give smart home command...",
                             fontSize = 13.sp,
                             color = if (isListening) Color(0xFFFF5252) else JarvisTextMuted
                         )
@@ -603,8 +603,9 @@ fun ChatMessageItem(
                                         fontFamily = FontFamily.Monospace
                                     )
                                 } else if (message.isGeminiLive) {
+                                    val modelLabel = message.modelName ?: "DYNAMIC GEMINI"
                                     Text(
-                                        text = "GEMINI LIVE • ${message.latencyMs ?: 240}ms",
+                                        text = "$modelLabel • ${message.latencyMs ?: 240}ms",
                                         fontSize = 9.sp,
                                         color = Color(0xFFB388FF),
                                         fontWeight = FontWeight.Bold,

@@ -7,7 +7,6 @@ import com.example.data.model.Routine
 import com.example.data.model.SmartDevice
 import com.example.data.model.SystemHealth
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -15,6 +14,9 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.IOException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 
 data class GeminiLiveResponse(
@@ -23,7 +25,8 @@ data class GeminiLiveResponse(
     val latencyMs: Long,
     val isLiveApi: Boolean,
     val actionCommands: List<VoiceActionCommand> = emptyList(),
-    val isError: Boolean = false
+    val isError: Boolean = false,
+    val selectedModelName: String? = null
 )
 
 data class VoiceActionCommand(
@@ -36,16 +39,7 @@ class GeminiLiveVoiceEngine {
 
     private val tag = "GeminiLiveEngine"
 
-    // Model candidates with gemini-1.5-flash prioritized as requested,
-    // with automatic resilient failover to supported modern flash models if needed.
-    private val modelCandidates = listOf(
-        "gemini-1.5-flash",
-        "gemini-flash-latest",
-        "gemini-3.5-flash",
-        "gemini-3.1-flash-lite-preview"
-    )
-
-    // Mandated OkHttpClient timeout configuration
+    // OkHttpClient with 30s timeout configuration
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
@@ -76,94 +70,157 @@ class GeminiLiveVoiceEngine {
                 !apiKey.contains("MY_GEMINI_API_KEY") &&
                 apiKey != "null"
 
+        // Error Handling: API key missing error displayed as a system alert in the chat interface
         if (!hasValidKey) {
-            // As specified: If the API Key is empty, display a J.A.R.V.I.S.-style error message
             return@withContext GeminiLiveResponse(
-                conversationalText = "System Alert: API Key missing or connection failed. Please configure your Gemini API Key in the settings.",
-                spokenText = "System Alert: API Key missing or connection failed.",
+                conversationalText = "System Alert: API Key is missing. Please configure your Gemini API Key in the settings to enable AI features.",
+                spokenText = "System Alert: API Key is missing. Please configure your Gemini API Key in settings.",
                 latencyMs = System.currentTimeMillis() - startTime,
                 isLiveApi = false,
-                isError = true
+                isError = true,
+                selectedModelName = null
             )
         }
 
-        var lastException: Exception? = null
+        try {
+            // Dynamic API Model Selection:
+            // First make a GET request to https://generativelanguage.googleapis.com/v1beta/models?key=[API_KEY]
+            val selectedModel = fetchBestAvailableModel(apiKey)
+            Log.d(tag, "Dynamically selected text-generation model: $selectedModel")
 
-        // Try candidate models starting with gemini-1.5-flash
-        for (model in modelCandidates) {
-            try {
-                val responseJson = executeGeminiRequestWithRetry(
-                    model = model,
-                    apiKey = apiKey,
-                    userQuery = userQuery,
-                    persona = persona,
-                    devices = devices,
-                    tasks = tasks,
-                    routines = routines,
-                    health = health
-                )
-                val latency = System.currentTimeMillis() - startTime
-                val parsed = parseLiveResponse(responseJson, latency, isLive = true)
-                if (parsed.conversationalText.isNotBlank()) {
-                    return@withContext parsed
+            // Construct subsequent POST request URL dynamically using this selected model name
+            val responseJson = executeGeminiPostRequest(
+                selectedModel = selectedModel,
+                apiKey = apiKey,
+                userQuery = userQuery,
+                persona = persona,
+                devices = devices,
+                tasks = tasks,
+                routines = routines,
+                health = health
+            )
+
+            val latency = System.currentTimeMillis() - startTime
+            return@withContext parseLiveResponse(
+                jsonString = responseJson,
+                latencyMs = latency,
+                isLive = true,
+                modelName = selectedModel
+            )
+        } catch (e: Exception) {
+            Log.e(tag, "Gemini request failed: ${e.message}", e)
+            val latency = System.currentTimeMillis() - startTime
+
+            // Error Handling: Graceful network failure and authentication alerts
+            val alertMessage = when {
+                e is UnknownHostException || e is SocketTimeoutException || e is IOException -> {
+                    "System Alert: Network failure. Unable to reach Gemini API servers. Please check your internet connection and retry."
                 }
-            } catch (e: Exception) {
-                lastException = e
-                Log.w(tag, "Model '$model' failed (${e.message}), trying next candidate...")
-            }
-        }
-
-        // As specified: If the API call fails, display a J.A.R.V.I.S.-style error message in the chat UI
-        val errorMsg = lastException?.message?.take(100) ?: "Connection failed"
-        Log.e(tag, "Gemini API call failed: $errorMsg")
-        return@withContext GeminiLiveResponse(
-            conversationalText = "System Alert: API Key missing or connection failed. Details: $errorMsg",
-            spokenText = "System Alert: API Key missing or connection failed.",
-            latencyMs = System.currentTimeMillis() - startTime,
-            isLiveApi = false,
-            isError = true
-        )
-    }
-
-    private suspend fun executeGeminiRequestWithRetry(
-        model: String,
-        apiKey: String,
-        userQuery: String,
-        persona: VoicePersona,
-        devices: List<SmartDevice>,
-        tasks: List<CalendarTask>,
-        routines: List<Routine>,
-        health: SystemHealth,
-        maxRetries: Int = 1
-    ): String {
-        var attempt = 0
-        while (true) {
-            try {
-                return executeGeminiRequest(
-                    model = model,
-                    apiKey = apiKey,
-                    userQuery = userQuery,
-                    persona = persona,
-                    devices = devices,
-                    tasks = tasks,
-                    routines = routines,
-                    health = health
-                )
-            } catch (e: Exception) {
-                val msg = e.message ?: ""
-                val isTransient = msg.contains("503") || msg.contains("429") || msg.contains("UNAVAILABLE")
-                if (isTransient && attempt < maxRetries) {
-                    attempt++
-                    delay(attempt * 200L)
-                } else {
-                    throw e
+                e.message?.contains("400") == true || e.message?.contains("403") == true || e.message?.contains("API_KEY_INVALID") == true -> {
+                    "System Alert: Invalid API Key or authentication failed. Please verify your Gemini API Key in settings."
+                }
+                e.message?.contains("404") == true -> {
+                    "System Alert: Selected model endpoint not found on Gemini API."
+                }
+                else -> {
+                    "System Alert: ${e.message?.take(150) ?: "Network failure or communication error while contacting AI service."}"
                 }
             }
+
+            return@withContext GeminiLiveResponse(
+                conversationalText = alertMessage,
+                spokenText = "System Alert: Communication failed. Please check network connection or API key.",
+                latencyMs = latency,
+                isLiveApi = false,
+                isError = true,
+                selectedModelName = null
+            )
         }
     }
 
-    private fun executeGeminiRequest(
-        model: String,
+    /**
+     * Dynamic API Model Selection:
+     * Makes a GET request to https://generativelanguage.googleapis.com/v1beta/models?key=[API_KEY]
+     * Parses the response to automatically find and select the best available text-generation model
+     * associated with that specific API key, prioritizing the latest pro or flash models.
+     */
+    private fun fetchBestAvailableModel(apiKey: String): String {
+        val listUrl = "https://generativelanguage.googleapis.com/v1beta/models?key=$apiKey"
+        val request = Request.Builder()
+            .url(listUrl)
+            .get()
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                val errorBody = response.body?.string() ?: ""
+                throw IOException("HTTP ${response.code} fetching model list: $errorBody")
+            }
+
+            val bodyString = response.body?.string() ?: "{}"
+            val root = JSONObject(bodyString)
+            val modelsArray = root.optJSONArray("models") ?: JSONArray()
+
+            val eligibleModels = mutableListOf<String>()
+            for (i in 0 until modelsArray.length()) {
+                val modelObj = modelsArray.optJSONObject(i) ?: continue
+                val name = modelObj.optString("name")
+                val methodsArray = modelObj.optJSONArray("supportedGenerationMethods")
+
+                var supportsGenerateContent = false
+                if (methodsArray != null) {
+                    for (j in 0 until methodsArray.length()) {
+                        if (methodsArray.optString(j) == "generateContent") {
+                            supportsGenerateContent = true
+                            break
+                        }
+                    }
+                }
+
+                if (supportsGenerateContent && name.isNotBlank()) {
+                    eligibleModels.add(name)
+                }
+            }
+
+            if (eligibleModels.isEmpty()) {
+                throw IOException("No models supporting 'generateContent' found for this API key.")
+            }
+
+            return selectBestModel(eligibleModels)
+        }
+    }
+
+    /**
+     * Selects the highest priority text-generation model, prioritizing latest pro or flash models.
+     */
+    private fun selectBestModel(models: List<String>): String {
+        fun priorityScore(rawName: String): Int {
+            val name = rawName.lowercase()
+            return when {
+                name.contains("2.5-pro") -> 200
+                name.contains("2.0-pro") -> 190
+                name.contains("2.5-flash") -> 180
+                name.contains("2.0-flash") -> 170
+                name.contains("1.5-pro") -> 160
+                name.contains("1.5-flash") -> 150
+                name.contains("pro-latest") -> 140
+                name.contains("flash-latest") -> 130
+                name.contains("pro") && !name.contains("vision") -> 110
+                name.contains("flash") -> 100
+                name.contains("gemini") -> 80
+                else -> 20
+            }
+        }
+
+        return models.maxByOrNull { priorityScore(it) } ?: models.first()
+    }
+
+    /**
+     * Constructs the subsequent POST request URL dynamically using the selected model name,
+     * and includes the strict friendly Bengali persona system instruction in the payload.
+     */
+    private fun executeGeminiPostRequest(
+        selectedModel: String,
         apiKey: String,
         userQuery: String,
         persona: VoicePersona,
@@ -172,21 +229,24 @@ class GeminiLiveVoiceEngine {
         routines: List<Routine>,
         health: SystemHealth
     ): String {
-        val url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey"
+        // Construct subsequent POST request URL dynamically using this selected model name
+        val modelPath = if (selectedModel.startsWith("models/")) selectedModel else "models/$selectedModel"
+        val postUrl = "https://generativelanguage.googleapis.com/v1beta/$modelPath:generateContent?key=$apiKey"
+
+        // Strict Friendly Bengali Persona instruction mandated by the prompt
+        val bengaliSystemInstruction = "You are a highly advanced, yet incredibly warm, friendly, and supportive AI assistant. You must always communicate and respond to the user exclusively in friendly, conversational Bengali language, maintaining a polite and helpful tone."
 
         val systemPrompt = buildString {
-            append("You are J.A.R.V.I.S. (Just A Rather Very Intelligent System), Tony Stark's advanced artificial intelligence. You must reply strictly in character: concise, analytical, and highly technical.\n")
-            append("Persona: Voice profile '${persona.displayName}'. Tone: ${persona.description}\n")
-            append("Style: Speak naturally, with sharp intellect, subtle wit, and absolute clarity in 1-3 conversational sentences suited for spoken voice audio.\n")
-            append("Smart Home Context:\n")
-            append("- Devices: ")
-            devices.forEach { dev ->
-                append("${dev.name} [ID: ${dev.id}, Type: ${dev.type}, Power: ${dev.isPowered}, Level: ${dev.level}%, Temp: ${dev.targetTemperatureF}F, Locked: ${dev.isLocked}], ")
-            }
-            append("\n- Tasks: ${tasks.count { !it.isCompleted }} pending.\n")
-            append("- System Health: Hub ping ${health.pingMs}ms, CPU ${health.cpuPercent}%.\n")
-            append("If the user's intent is to control devices or trigger routines, include action tags at the end of your response:\n")
+            append(bengaliSystemInstruction)
+            append("\n\nSmart Home Integration & Execution Directives:\n")
+            append("You also control the user's smart home devices, automated routines, and calendar. Whenever the user asks to control devices or trigger routines (such as switching lights on/off, adjusting temperature, locking doors, or running morning/night routines), respond in warm, polite, and helpful conversational Bengali and append the corresponding action tags at the end of your response:\n")
             append("[ACTION:POWER:dev_id:true/false], [ACTION:TEMP:dev_id:temp_value], [ACTION:LOCK:dev_id:true/false], [ACTION:BLINDS:dev_id:percent], [ACTION:ROUTINE:routine_id]\n")
+            append("Connected Smart Home Devices:\n")
+            devices.forEach { dev ->
+                append("- ${dev.name} [ID: ${dev.id}, Type: ${dev.type}, Powered: ${dev.isPowered}, Level: ${dev.level}%, Temp: ${dev.targetTemperatureF}F, Locked: ${dev.isLocked}]\n")
+            }
+            append("Pending Tasks: ${tasks.count { !it.isCompleted }}\n")
+            append("System Status: Ping ${health.pingMs}ms, CPU ${health.cpuPercent}%\n")
         }
 
         val jsonBody = JSONObject().apply {
@@ -201,7 +261,7 @@ class GeminiLiveVoiceEngine {
             contentsArray.put(contentObj)
             put("contents", contentsArray)
 
-            // systemInstruction
+            // systemInstruction with the friendly Bengali persona
             val sysInstructionObj = JSONObject().apply {
                 val sysParts = JSONArray()
                 sysParts.put(JSONObject().apply { put("text", systemPrompt) })
@@ -222,14 +282,14 @@ class GeminiLiveVoiceEngine {
         val requestBody = jsonBody.toString().toRequestBody(mediaType)
 
         val request = Request.Builder()
-            .url(url)
+            .url(postUrl)
             .post(requestBody)
             .build()
 
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 val errorBody = response.body?.string() ?: "Empty error"
-                throw RuntimeException("HTTP ${response.code}: $errorBody")
+                throw IOException("HTTP ${response.code}: $errorBody")
             }
             return response.body?.string() ?: "{}"
         }
@@ -238,7 +298,8 @@ class GeminiLiveVoiceEngine {
     private fun parseLiveResponse(
         jsonString: String,
         latencyMs: Long,
-        isLive: Boolean
+        isLive: Boolean,
+        modelName: String
     ): GeminiLiveResponse {
         val root = JSONObject(jsonString)
         val candidates = root.optJSONArray("candidates")
@@ -246,7 +307,7 @@ class GeminiLiveVoiceEngine {
         val content = firstCandidate?.optJSONObject("content")
         val parts = content?.optJSONArray("parts")
         val rawText = parts?.optJSONObject(0)?.optString("text")?.takeIf { it.isNotBlank() }
-            ?: "All systems operational, sir. Ready for your command."
+            ?: "সব সিস্টেম সচল রয়েছে। আমি আপনাকে কীভাবে সহায়তা করতে পারি?"
 
         // Extract action tags [ACTION:TYPE:ID:VAL]
         val actions = mutableListOf<VoiceActionCommand>()
@@ -259,118 +320,17 @@ class GeminiLiveVoiceEngine {
             actions.add(VoiceActionCommand(type, target, value))
         }
 
-        // Clean spoken text by stripping out raw bracketed action tokens
-        val spoken = rawText.replace(actionRegex, "").trim()
+        // Clean spoken/display text by stripping raw action tokens
+        val cleanText = rawText.replace(actionRegex, "").trim()
+        val cleanModel = modelName.removePrefix("models/")
 
         return GeminiLiveResponse(
-            conversationalText = rawText,
-            spokenText = spoken.ifBlank { "Acknowledged, sir." },
+            conversationalText = cleanText.ifBlank { rawText },
+            spokenText = cleanText.ifBlank { "সবকিছু ঠিকঠাক কাজ করছে।" },
             latencyMs = latencyMs,
             isLiveApi = isLive,
-            actionCommands = actions
-        )
-    }
-
-    private fun generateLocalConversationalFallback(
-        userQuery: String,
-        persona: VoicePersona,
-        devices: List<SmartDevice>,
-        tasks: List<CalendarTask>,
-        routines: List<Routine>,
-        startTime: Long
-    ): GeminiLiveResponse {
-        val q = userQuery.lowercase()
-        val actions = mutableListOf<VoiceActionCommand>()
-
-        val reply = when {
-            q.contains("light") || q.contains("chandelier") || q.contains("lamp") -> {
-                val light = devices.find { it.id == "dev_light_living" }
-                val willTurnOn = !q.contains("off")
-                actions.add(VoiceActionCommand("POWER", "dev_light_living", willTurnOn.toString()))
-                if (willTurnOn) {
-                    "Right away, sir. Illuminating the living room chandelier to 85%."
-                } else {
-                    "Understood. Powering down the living room illumination."
-                }
-            }
-            q.contains("thermostat") || q.contains("temp") || q.contains("heat") || q.contains("air con") || q.contains("climate") -> {
-                val temp = when {
-                    q.contains("68") -> "68"
-                    q.contains("70") -> "70"
-                    q.contains("74") -> "74"
-                    else -> "72"
-                }
-                actions.add(VoiceActionCommand("TEMP", "dev_thermostat_main", temp))
-                "Adjusting the climate controls. Smart thermostat set to $temp degrees Fahrenheit."
-            }
-            q.contains("lock") || q.contains("door") || q.contains("deadbolt") -> {
-                val doLock = !q.contains("unlock")
-                actions.add(VoiceActionCommand("LOCK", "dev_lock_front", doLock.toString()))
-                if (doLock) {
-                    "Securing front door deadbolt with hardware token verification. Perimeter sealed."
-                } else {
-                    "Front door deadbolt unlatched. Welcome home, sir."
-                }
-            }
-            q.contains("blind") || q.contains("studio") || q.contains("shade") || q.contains("curtain") -> {
-                val open = !q.contains("close")
-                actions.add(VoiceActionCommand("BLINDS", "dev_blinds_studio", if (open) "100" else "0"))
-                if (open) "Opening motorized studio blinds to allow natural ambient light."
-                else "Closing studio blinds for privacy."
-            }
-            q.contains("morning") || q.contains("rise and shine") || (q.contains("good morning")) -> {
-                actions.add(VoiceActionCommand("ROUTINE", "morning", null))
-                "Good morning, sir. Initiating the Rise and Shine sequence. Adjusting lighting, climate, and readying your briefing."
-            }
-            q.contains("night") || q.contains("good night") || q.contains("sleep") -> {
-                actions.add(VoiceActionCommand("ROUTINE", "night", null))
-                "Good night, sir. Engaging Night Lockdown. Arming perimeter sensors, lowering thermostat, and turning off all lights."
-            }
-            q.contains("movie") || q.contains("cinema") -> {
-                actions.add(VoiceActionCommand("ROUTINE", "movie", null))
-                "Initiating Cinema Mode. Dimming lighting to theater levels and closing studio blinds."
-            }
-            q.contains("away") || q.contains("leaving") -> {
-                actions.add(VoiceActionCommand("ROUTINE", "away", null))
-                "Setting residence to Away Mode. Securing locks and switching climate to eco mode."
-            }
-            q.contains("brief") || q.contains("agenda") || q.contains("schedule") || q.contains("calendar") || q.contains("today") -> {
-                val pending = tasks.count { !it.isCompleted }
-                val nextTask = tasks.firstOrNull { !it.isCompleted }
-                if (nextTask != null) {
-                    "At your command. You have $pending pending schedule items today. Up next is '${nextTask.title}' at ${nextTask.timeSlot}."
-                } else {
-                    "Your schedule is completely clear for today, sir. All home subsystems are operating nominally."
-                }
-            }
-            q.contains("health") || q.contains("status") || q.contains("diagnostic") || q.contains("ping") || q.contains("cpu") -> {
-                val onlineCount = devices.count { it.isOnline }
-                "System diagnostics nominal. $onlineCount IoT mesh endpoints online. Mesh latency 12ms with zero packet loss."
-            }
-            q.contains("who are you") || q.contains("what can you do") -> {
-                "I am Jarvis, an advanced smart home hub assistant powered by Gemini intelligence with an on-device neural privacy core."
-            }
-            q.contains("hello") || q.contains("hi") || q.contains("hey jarvis") -> {
-                "Greetings, sir. Voice persona '${persona.displayName}' active and ready for your command."
-            }
-            q.contains("joke") -> {
-                "Why did the smart thermostat break up with the smart bulb? There was no real connection, and the heat was unbearable."
-            }
-            q.contains("thank") -> {
-                "Always at your service, sir."
-            }
-            else -> {
-                "Acknowledged, sir. Local conversational core processed your request under '${persona.displayName}'. All subsystems operational."
-            }
-        }
-
-        val latency = (System.currentTimeMillis() - startTime).coerceAtLeast(18)
-        return GeminiLiveResponse(
-            conversationalText = reply,
-            spokenText = reply,
-            latencyMs = latency,
-            isLiveApi = false,
-            actionCommands = actions
+            actionCommands = actions,
+            selectedModelName = cleanModel
         )
     }
 }

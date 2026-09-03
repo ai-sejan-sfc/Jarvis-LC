@@ -64,6 +64,16 @@ class TextToSpeechHelper(context: Context) {
     fun speak(text: String, persona: VoicePersona? = null) {
         persona?.let { applyPersona(it) }
         if (isInitialized && tts != null) {
+            val hasBengali = text.any { it in '\u0980'..'\u09FF' }
+            if (hasBengali) {
+                val bengaliLocale = Locale("bn", "BD")
+                val avail = tts?.isLanguageAvailable(bengaliLocale)
+                if (avail == TextToSpeech.LANG_AVAILABLE || avail == TextToSpeech.LANG_COUNTRY_AVAILABLE || avail == TextToSpeech.LANG_COUNTRY_VAR_AVAILABLE) {
+                    tts?.language = bengaliLocale
+                }
+            } else {
+                tts?.language = Locale.US
+            }
             _isSpeaking.value = true
             val utteranceId = "JARVIS_UTTERANCE_${System.currentTimeMillis()}"
             tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)

@@ -18,5 +18,6 @@ data class ChatMessage(
     val isGeminiLive: Boolean = false,
     val detectedDialect: String? = null,
     val confidenceScore: Float? = null,
-    val noiseFloorDb: Float? = null
+    val noiseFloorDb: Float? = null,
+    val modelName: String? = null
 )

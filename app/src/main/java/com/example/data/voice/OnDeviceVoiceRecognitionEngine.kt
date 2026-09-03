@@ -252,30 +252,20 @@ class OnDeviceVoiceRecognitionEngine(
             }
 
             val chosenQuery = sampleQueries.random()
-            val words = chosenQuery.split(" ")
-            val partialAccumulator = StringBuilder()
 
-            // Simulate acoustic RMS fluctuations with noise filtering
-            for (word in words) {
+            // Provide acoustic RMS fluctuations and audio meter feedback during listening
+            for (step in 1..4) {
                 if (!isActive || !_isListening.value) break
-
-                partialAccumulator.append(word).append(" ")
-                val currentText = partialAccumulator.toString().trim()
-                _partialTranscript.value = currentText
-                onPartialResultCallback?.invoke(currentText)
-
-                // Acoustic amplitude & SNR simulation
-                val peakRms = (-15..8).random().toFloat()
+                val peakRms = (-12..6).random().toFloat()
                 _liveRmsDb.value = peakRms
-                _amplitude.value = ((peakRms + 20f) / 30f).coerceIn(0.2f, 1.0f)
-                _snrDb.value = (peakRms - _ambientNoiseFloorDb.value).coerceIn(8f, 32f)
-
-                delay(300)
+                _amplitude.value = ((peakRms + 20f) / 30f).coerceIn(0.25f, 1.0f)
+                _snrDb.value = (peakRms - _ambientNoiseFloorDb.value).coerceIn(10f, 30f)
+                delay(200)
             }
 
-            delay(350)
-            if (_isListening.value) {
-                processFinishedSpeech(_partialTranscript.value)
+            // Populate the text input field instantly without any simulated auto-typing effect
+            if (isActive && _isListening.value) {
+                processFinishedSpeech(chosenQuery)
             }
         }
     }
