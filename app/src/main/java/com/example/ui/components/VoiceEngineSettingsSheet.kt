@@ -287,7 +287,7 @@ fun VoiceEngineSettingsSheet(
                                     onApiKeyChange(it)
                                 },
                                 placeholder = {
-                                    Text("Enter Gemini API Key (AIzaSy...)", fontSize = 12.sp, color = JarvisTextMuted)
+                                    Text("Enter Gemini API Key...", fontSize = 12.sp, color = JarvisTextMuted)
                                 },
                                 singleLine = true,
                                 modifier = Modifier

@@ -40,7 +40,7 @@ enum class CaptureState(val displayLabel: String) {
     LISTENING_FOR_WAKE_WORD("Acoustic Guard Active"),
     WAKE_WORD_DETECTED("Wake Word Triggered"),
     RECORDING_COMMAND("Recording Voice Command"),
-    PROCESSING_COMMAND("Processing Neural Core")
+    PROCESSING_COMMAND("Processing Speech Query")
 }
 
 /**

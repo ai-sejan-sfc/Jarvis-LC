@@ -874,7 +874,7 @@ fun SettingsScreen(
 
                     // Preferred Smart Protocol
                     Text(
-                        text = "Default Smart Home Protocol",
+                        text = "Default Connectivity Protocol",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = JarvisTextPrimary
@@ -1010,7 +1010,7 @@ fun SettingsScreen(
                                 )
                             }
                         },
-                        placeholder = { Text("Paste AI Studio API Key (AIzaSy...)", fontSize = 12.sp, color = JarvisTextMuted) },
+                        placeholder = { Text("Enter Gemini API Key...", fontSize = 12.sp, color = JarvisTextMuted) },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = JarvisCyan,
                             unfocusedBorderColor = JarvisBorder,

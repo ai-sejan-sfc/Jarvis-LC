@@ -30,6 +30,12 @@ enum class DialectProfile(
         description = "South Asian English with retroflex consonant and rhythm normalization.",
         sampleGreeting = "At your service. Ready to assist."
     ),
+    BENGALI(
+        displayName = "Bengali (বাংলা)",
+        regionCode = "bn-BD",
+        description = "Native Bengali conversational acoustics with high phonetic fidelity.",
+        sampleGreeting = "নমস্কার, আমি জারভিস। আমি আপনাকে কীভাবে সাহায্য করতে পারি?"
+    ),
     SCOTTISH(
         displayName = "Scottish / Celtic",
         regionCode = "en-GB",

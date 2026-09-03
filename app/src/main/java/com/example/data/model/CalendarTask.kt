@@ -8,7 +8,7 @@ enum class TaskPriority(val label: String) {
 
 enum class TaskCategory(val label: String) {
     WORK("Work"),
-    HOME("Smart Home"),
+    HOME("Home"),
     PERSONAL("Personal"),
     HEALTH("Health")
 }

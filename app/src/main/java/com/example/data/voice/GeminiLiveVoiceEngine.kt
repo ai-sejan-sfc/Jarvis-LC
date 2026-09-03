@@ -190,29 +190,55 @@ class GeminiLiveVoiceEngine {
         }
     }
 
+    data class ModelCandidate(
+        val fullName: String,
+        val version: Double,
+        val isPro: Boolean,
+        val isFlash: Boolean
+    )
+
     /**
-     * Selects the highest priority text-generation model, prioritizing latest pro or flash models.
+     * Advanced Dynamic Model Selection (> v3.1 Priority):
+     * Parses available models, extracts version number from model name (e.g., extracting 1.5 from gemini-1.5-pro,
+     * or 4.0 from gemini-4.0-flash).
+     * Logic: Prioritizes and selects models where the extracted version number is strictly greater than 3.1.
+     * If no such model exists yet, falls back to the highest available version number (prioritizing 'pro' or 'flash' variants).
      */
     private fun selectBestModel(models: List<String>): String {
-        fun priorityScore(rawName: String): Int {
-            val name = rawName.lowercase()
-            return when {
-                name.contains("2.5-pro") -> 200
-                name.contains("2.0-pro") -> 190
-                name.contains("2.5-flash") -> 180
-                name.contains("2.0-flash") -> 170
-                name.contains("1.5-pro") -> 160
-                name.contains("1.5-flash") -> 150
-                name.contains("pro-latest") -> 140
-                name.contains("flash-latest") -> 130
-                name.contains("pro") && !name.contains("vision") -> 110
-                name.contains("flash") -> 100
-                name.contains("gemini") -> 80
-                else -> 20
-            }
+        val versionRegex = Regex("""(\d+(?:\.\d+)?)""")
+        val candidates = models.map { fullName ->
+            val cleanName = fullName.removePrefix("models/").lowercase()
+            val match = versionRegex.find(cleanName)
+            val version = match?.value?.toDoubleOrNull() ?: 0.0
+            val isPro = cleanName.contains("pro")
+            val isFlash = cleanName.contains("flash")
+            ModelCandidate(fullName, version, isPro, isFlash)
         }
 
-        return models.maxByOrNull { priorityScore(it) } ?: models.first()
+        // Logic: Prioritize models where the extracted version number is strictly greater than 3.1
+        val modelsAbove31 = candidates.filter { it.version > 3.1 }
+
+        val candidatePool = if (modelsAbove31.isNotEmpty()) {
+            modelsAbove31
+        } else {
+            candidates
+        }
+
+        // Sort by:
+        // 1. Highest version number first (descending)
+        // 2. Variant priority: 'pro' (2), 'flash' (1), other (0)
+        val best = candidatePool.sortedWith(
+            compareByDescending<ModelCandidate> { it.version }
+                .thenByDescending {
+                    when {
+                        it.isPro -> 2
+                        it.isFlash -> 1
+                        else -> 0
+                    }
+                }
+        ).firstOrNull()
+
+        return best?.fullName ?: models.first()
     }
 
     /**
@@ -233,8 +259,8 @@ class GeminiLiveVoiceEngine {
         val modelPath = if (selectedModel.startsWith("models/")) selectedModel else "models/$selectedModel"
         val postUrl = "https://generativelanguage.googleapis.com/v1beta/$modelPath:generateContent?key=$apiKey"
 
-        // Exact Friendly Bengali Persona system instruction mandated by user instructions
-        val bengaliSystemInstruction = "You are J.A.R.V.I.S., powered by the Gemini Live engine. You are a highly advanced, warm, friendly, and supportive AI assistant. You must always communicate and respond to the user exclusively in friendly, conversational Bengali language."
+        // Strict Friendly Bengali Persona system instruction mandated by user instructions
+        val bengaliSystemInstruction = "You are J.A.R.V.I.S., a highly advanced, warm, and friendly AI assistant. You must always communicate and respond to the user exclusively in friendly, conversational Bengali language."
 
         val jsonBody = JSONObject().apply {
             // contents
