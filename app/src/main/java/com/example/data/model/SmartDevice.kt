@@ -16,6 +16,11 @@ enum class SmartProtocol(val label: String) {
     WIFI_LAN("WiFi / LAN")
 }
 
+enum class TemperatureUnit(val label: String, val symbol: String) {
+    FAHRENHEIT("Fahrenheit", "°F"),
+    CELSIUS("Celsius", "°C")
+}
+
 data class SmartDevice(
     val id: String,
     val name: String,

@@ -38,6 +38,13 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -71,6 +78,8 @@ fun VoiceEngineSettingsSheet(
     liveRmsDb: Float,
     ambientNoiseFloorDb: Float,
     snrDb: Float,
+    apiKey: String = "",
+    onApiKeyChange: (String) -> Unit = {},
     onGeminiLiveModeToggle: (Boolean) -> Unit,
     onSelectPersona: (VoicePersona) -> Unit,
     onSelectDialect: (DialectProfile) -> Unit,
@@ -204,6 +213,91 @@ fun VoiceEngineSettingsSheet(
                                     )
                                 )
                             }
+                        }
+                    }
+                }
+
+                // Section: Gemini API Key Configuration
+                item {
+                    var keyInput by remember(apiKey) { mutableStateOf(apiKey) }
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = JarvisCardBg,
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (apiKey.isNotBlank()) JarvisCyan.copy(alpha = 0.5f) else JarvisAmber.copy(alpha = 0.5f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Key,
+                                        contentDescription = null,
+                                        tint = if (apiKey.isNotBlank()) JarvisCyan else JarvisAmber,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = "Gemini API Key",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = JarvisTextPrimary
+                                        )
+                                    )
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(if (apiKey.isNotBlank()) JarvisEmerald.copy(alpha = 0.15f) else JarvisAmber.copy(alpha = 0.15f))
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                                ) {
+                                    Text(
+                                        text = if (apiKey.isNotBlank()) "ACTIVE" else "KEY MISSING",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = if (apiKey.isNotBlank()) JarvisEmerald else JarvisAmber,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 9.sp
+                                        )
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Required for Live Gemini 1.5 Flash conversational queries.",
+                                style = MaterialTheme.typography.bodySmall.copy(color = JarvisTextMuted)
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+                            OutlinedTextField(
+                                value = keyInput,
+                                onValueChange = {
+                                    keyInput = it
+                                    onApiKeyChange(it)
+                                },
+                                placeholder = {
+                                    Text("Enter Gemini API Key (AIzaSy...)", fontSize = 12.sp, color = JarvisTextMuted)
+                                },
+                                singleLine = true,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("gemini_api_key_input"),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = JarvisTextPrimary,
+                                    unfocusedTextColor = JarvisTextPrimary,
+                                    focusedBorderColor = JarvisCyan,
+                                    unfocusedBorderColor = JarvisBorder,
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent
+                                )
+                            )
                         }
                     }
                 }

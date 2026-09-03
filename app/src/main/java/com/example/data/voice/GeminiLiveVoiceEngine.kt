@@ -22,7 +22,8 @@ data class GeminiLiveResponse(
     val spokenText: String,
     val latencyMs: Long,
     val isLiveApi: Boolean,
-    val actionCommands: List<VoiceActionCommand> = emptyList()
+    val actionCommands: List<VoiceActionCommand> = emptyList(),
+    val isError: Boolean = false
 )
 
 data class VoiceActionCommand(
@@ -35,13 +36,13 @@ class GeminiLiveVoiceEngine {
 
     private val tag = "GeminiLiveEngine"
 
-    // Model candidates prioritizing latest resilient Gemini Flash for real-time conversational reasoning,
-    // with automatic failover conforming strictly to Gemini API skill standards.
+    // Model candidates with gemini-1.5-flash prioritized as requested,
+    // with automatic resilient failover to supported modern flash models if needed.
     private val modelCandidates = listOf(
+        "gemini-1.5-flash",
         "gemini-flash-latest",
         "gemini-3.5-flash",
-        "gemini-3.1-flash-lite-preview",
-        "gemini-3.1-pro-preview"
+        "gemini-3.1-flash-lite-preview"
     )
 
     // Mandated OkHttpClient timeout configuration
@@ -57,13 +58,18 @@ class GeminiLiveVoiceEngine {
         devices: List<SmartDevice>,
         tasks: List<CalendarTask>,
         routines: List<Routine>,
-        health: SystemHealth
+        health: SystemHealth,
+        customApiKey: String = ""
     ): GeminiLiveResponse = withContext(Dispatchers.IO) {
         val startTime = System.currentTimeMillis()
-        val apiKey = try {
-            BuildConfig.GEMINI_API_KEY
-        } catch (e: Throwable) {
-            ""
+        val apiKey = if (customApiKey.isNotBlank()) {
+            customApiKey.trim()
+        } else {
+            try {
+                BuildConfig.GEMINI_API_KEY
+            } catch (e: Throwable) {
+                ""
+            }
         }
 
         val hasValidKey = apiKey.isNotBlank() &&
@@ -71,20 +77,19 @@ class GeminiLiveVoiceEngine {
                 apiKey != "null"
 
         if (!hasValidKey) {
-            // Local conversational intelligence fallback
-            return@withContext generateLocalConversationalFallback(
-                userQuery = userQuery,
-                persona = persona,
-                devices = devices,
-                tasks = tasks,
-                routines = routines,
-                startTime = startTime
+            // As specified: If the API Key is empty, display a J.A.R.V.I.S.-style error message
+            return@withContext GeminiLiveResponse(
+                conversationalText = "System Alert: API Key missing or connection failed. Please configure your Gemini API Key in the settings.",
+                spokenText = "System Alert: API Key missing or connection failed.",
+                latencyMs = System.currentTimeMillis() - startTime,
+                isLiveApi = false,
+                isError = true
             )
         }
 
         var lastException: Exception? = null
 
-        // Try candidate models with graceful failover on transient HTTP 503 / 429 errors
+        // Try candidate models starting with gemini-1.5-flash
         for (model in modelCandidates) {
             try {
                 val responseJson = executeGeminiRequestWithRetry(
@@ -104,19 +109,19 @@ class GeminiLiveVoiceEngine {
                 }
             } catch (e: Exception) {
                 lastException = e
-                Log.d(tag, "Model '$model' transiently unavailable (${e.message}), trying next candidate...")
+                Log.w(tag, "Model '$model' failed (${e.message}), trying next candidate...")
             }
         }
 
-        // Seamless fallback to on-device conversational core when cloud models are temporarily busy or unreachable
-        Log.w(tag, "Cloud Gemini models unavailable (${lastException?.message}). Activating local conversational intelligence.")
-        return@withContext generateLocalConversationalFallback(
-            userQuery = userQuery,
-            persona = persona,
-            devices = devices,
-            tasks = tasks,
-            routines = routines,
-            startTime = startTime
+        // As specified: If the API call fails, display a J.A.R.V.I.S.-style error message in the chat UI
+        val errorMsg = lastException?.message?.take(100) ?: "Connection failed"
+        Log.e(tag, "Gemini API call failed: $errorMsg")
+        return@withContext GeminiLiveResponse(
+            conversationalText = "System Alert: API Key missing or connection failed. Details: $errorMsg",
+            spokenText = "System Alert: API Key missing or connection failed.",
+            latencyMs = System.currentTimeMillis() - startTime,
+            isLiveApi = false,
+            isError = true
         )
     }
 
@@ -170,7 +175,7 @@ class GeminiLiveVoiceEngine {
         val url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey"
 
         val systemPrompt = buildString {
-            append("You are J.A.R.V.I.S. (Just A Rather Very Intelligent System), an advanced conversational AI and smart home hub.\n")
+            append("You are J.A.R.V.I.S. (Just A Rather Very Intelligent System), Tony Stark's advanced artificial intelligence. You must reply strictly in character: concise, analytical, and highly technical.\n")
             append("Persona: Voice profile '${persona.displayName}'. Tone: ${persona.description}\n")
             append("Style: Speak naturally, with sharp intellect, subtle wit, and absolute clarity in 1-3 conversational sentences suited for spoken voice audio.\n")
             append("Smart Home Context:\n")

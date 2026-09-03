@@ -217,6 +217,7 @@ fun SmartHomeScreen(
         items(filteredDevices, key = { it.id }) { device ->
             DeviceControlCard(
                 device = device,
+                formatTemperature = { viewModel.formatTemperature(it) },
                 onTogglePower = { viewModel.toggleDevicePower(device.id) },
                 onLevelChange = { level -> viewModel.setDeviceLevel(device.id, level) },
                 onTempChange = { delta -> viewModel.setThermostatTemp(device.id, device.targetTemperatureF + delta) },
@@ -231,6 +232,7 @@ fun SmartHomeScreen(
 @Composable
 fun DeviceControlCard(
     device: SmartDevice,
+    formatTemperature: (Int) -> String = { "$it°F" },
     onTogglePower: () -> Unit,
     onLevelChange: (Int) -> Unit,
     onTempChange: (Int) -> Unit,
@@ -376,13 +378,13 @@ fun DeviceControlCard(
                     ) {
                         Column {
                             Text(
-                                text = "CURRENT: ${device.currentTemperatureF}°F",
+                                text = "CURRENT: ${formatTemperature(device.currentTemperatureF)}",
                                 fontSize = 11.sp,
                                 color = JarvisTextSecondary,
                                 fontFamily = FontFamily.Monospace
                             )
                             Text(
-                                text = "TARGET: ${device.targetTemperatureF}°F",
+                                text = "TARGET: ${formatTemperature(device.targetTemperatureF)}",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = JarvisCyan,

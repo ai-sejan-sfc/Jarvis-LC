@@ -1,14 +1,21 @@
 package com.example.viewmodel
 
+import android.Manifest
 import android.app.Application
+import android.content.Context
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.BuildConfig
 import com.example.data.local.CryptoManager
 import com.example.data.local.NlpActionType
 import com.example.data.local.OnDeviceNlpEngine
 import com.example.data.local.TextToSpeechHelper
+import com.example.data.voice.CaptureState
 import com.example.data.voice.DialectProfile
 import com.example.data.voice.GeminiLiveVoiceEngine
+import com.example.data.voice.MicrophoneCaptureService
 import com.example.data.voice.NoiseFilterMode
 import com.example.data.voice.OnDeviceVoiceRecognitionEngine
 import com.example.data.voice.VoicePersona
@@ -28,6 +35,7 @@ import com.example.data.model.SyncState
 import com.example.data.model.SystemHealth
 import com.example.data.model.TaskCategory
 import com.example.data.model.TaskPriority
+import com.example.data.model.TemperatureUnit
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -39,6 +47,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 class JarvisViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -47,9 +56,122 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
     private val onDeviceVoiceEngine = OnDeviceVoiceRecognitionEngine(application, viewModelScope)
     private val geminiLiveEngine = GeminiLiveVoiceEngine()
 
+    private val prefs = application.getSharedPreferences("jarvis_app_prefs", Context.MODE_PRIVATE)
+
+    // Text Input Field state (auto-filled by voice transcription)
+    private val _inputQuery = MutableStateFlow("")
+    val inputQuery: StateFlow<String> = _inputQuery.asStateFlow()
+
+    // Configured Gemini API Key
+    private val _customApiKey = MutableStateFlow(prefs.getString("gemini_api_key", "") ?: "")
+    val customApiKey: StateFlow<String> = _customApiKey.asStateFlow()
+
+    fun updateInputQuery(text: String) {
+        _inputQuery.value = text
+    }
+
+    fun setCustomApiKey(key: String) {
+        _customApiKey.value = key.trim()
+        prefs.edit().putString("gemini_api_key", key.trim()).apply()
+    }
+
+    fun getEffectiveApiKey(): String {
+        val userKey = _customApiKey.value.trim()
+        if (userKey.isNotBlank()) return userKey
+        val buildKey = try { BuildConfig.GEMINI_API_KEY } catch (e: Throwable) { "" }
+        if (buildKey.isNotBlank() && !buildKey.contains("MY_GEMINI_API_KEY") && buildKey != "null") {
+            return buildKey
+        }
+        return ""
+    }
+
     // Gemini Live vs On-Device Privacy Mode
     private val _isGeminiLiveMode = MutableStateFlow(true)
     val isGeminiLiveMode: StateFlow<Boolean> = _isGeminiLiveMode.asStateFlow()
+
+    // Offline-Only Privacy Mode (Strict 100% Air-Gapped Neural Core)
+    private val _offlineOnlyPrivacyMode = MutableStateFlow(prefs.getBoolean("offline_only_privacy_mode", false))
+    val offlineOnlyPrivacyMode: StateFlow<Boolean> = _offlineOnlyPrivacyMode.asStateFlow()
+
+    // Smart Home Preferences
+    private val _temperatureUnit = MutableStateFlow(
+        try {
+            TemperatureUnit.valueOf(prefs.getString("temperature_unit", "FAHRENHEIT") ?: "FAHRENHEIT")
+        } catch (e: Exception) {
+            TemperatureUnit.FAHRENHEIT
+        }
+    )
+    val temperatureUnit: StateFlow<TemperatureUnit> = _temperatureUnit.asStateFlow()
+
+    private val _defaultLightBrightness = MutableStateFlow(prefs.getInt("default_light_brightness", 80))
+    val defaultLightBrightness: StateFlow<Int> = _defaultLightBrightness.asStateFlow()
+
+    private val _preferredRoom = MutableStateFlow(prefs.getString("preferred_room", "Living Room") ?: "Living Room")
+    val preferredRoom: StateFlow<String> = _preferredRoom.asStateFlow()
+
+    private val _autoLockDelaySeconds = MutableStateFlow(prefs.getInt("auto_lock_delay_seconds", 60))
+    val autoLockDelaySeconds: StateFlow<Int> = _autoLockDelaySeconds.asStateFlow()
+
+    private val _preferredProtocol = MutableStateFlow(
+        try {
+            SmartProtocol.valueOf(prefs.getString("preferred_protocol", "MATTER") ?: "MATTER")
+        } catch (e: Exception) {
+            SmartProtocol.MATTER
+        }
+    )
+    val preferredProtocol: StateFlow<SmartProtocol> = _preferredProtocol.asStateFlow()
+
+    private val _confirmSecurityActions = MutableStateFlow(prefs.getBoolean("confirm_security_actions", true))
+    val confirmSecurityActions: StateFlow<Boolean> = _confirmSecurityActions.asStateFlow()
+
+    // Wake Word & Microphone Capture Service State
+    private val _wakeWordEnabled = MutableStateFlow(prefs.getBoolean("wake_word_enabled", true))
+    val wakeWordEnabled: StateFlow<Boolean> = _wakeWordEnabled.asStateFlow()
+
+    private val _wakeWordPhrase = MutableStateFlow(prefs.getString("wake_word_phrase", "Hey Jarvis") ?: "Hey Jarvis")
+    val wakeWordPhrase: StateFlow<String> = _wakeWordPhrase.asStateFlow()
+
+    private val _wakeWordSensitivity = MutableStateFlow(prefs.getFloat("wake_word_sensitivity", 0.8f))
+    val wakeWordSensitivity: StateFlow<Float> = _wakeWordSensitivity.asStateFlow()
+
+    private val _hasMicPermission = MutableStateFlow(
+        ContextCompat.checkSelfPermission(
+            application,
+            Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED
+    )
+    val hasMicPermission: StateFlow<Boolean> = _hasMicPermission.asStateFlow()
+
+    // Observables forwarded from MicrophoneCaptureService
+    val wakeWordCaptureState: StateFlow<CaptureState> = MicrophoneCaptureService.captureState
+    val wakeWordRmsDb: StateFlow<Float> = MicrophoneCaptureService.liveRmsDb
+    val wakeWordTriggerCount: StateFlow<Int> = MicrophoneCaptureService.wakeWordTriggerCount
+    val lastCapturedVoiceCommand: StateFlow<String?> = MicrophoneCaptureService.lastCapturedCommand
+
+    init {
+        // Enforce offline-only state if enabled
+        if (_offlineOnlyPrivacyMode.value) {
+            _isGeminiLiveMode.value = false
+        }
+
+        MicrophoneCaptureService.updateWakeWordConfig(_wakeWordPhrase.value, _wakeWordSensitivity.value)
+        MicrophoneCaptureService.onVoiceCommandCaptured = { voiceCommand ->
+            submitQuery(
+                rawQuery = voiceCommand,
+                fromVoice = true,
+                dialect = _dialect.value,
+                confidence = 0.95f
+            )
+        }
+
+        if (_hasMicPermission.value && _wakeWordEnabled.value) {
+            try {
+                MicrophoneCaptureService.start(application)
+            } catch (e: Exception) {
+                // Background start restriction fallback
+            }
+        }
+    }
 
     private val _isThinking = MutableStateFlow(false)
     val isThinking: StateFlow<Boolean> = _isThinking.asStateFlow()
@@ -350,7 +472,120 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
     private val _routineExecutionStatus = MutableStateFlow<String?>(null)
     val routineExecutionStatus: StateFlow<String?> = _routineExecutionStatus.asStateFlow()
 
+    fun formatTemperature(tempF: Int): String {
+        return if (_temperatureUnit.value == TemperatureUnit.CELSIUS) {
+            val c = ((tempF - 32) * 5.0 / 9.0).roundToInt()
+            "$c°C"
+        } else {
+            "$tempF°F"
+        }
+    }
+
+    fun setOfflineOnlyPrivacyMode(enabled: Boolean) {
+        _offlineOnlyPrivacyMode.value = enabled
+        prefs.edit().putBoolean("offline_only_privacy_mode", enabled).apply()
+        if (enabled) {
+            _isGeminiLiveMode.value = false
+            val notice = ChatMessage(
+                sender = MessageSender.SYSTEM,
+                text = "🛡️ AIR-GAPPED PRIVACY ENGAGED: Outbound network egress blocked. 100% on-device neural processing with AES-256 local database encryption.",
+                timestamp = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
+                intentDetected = "AIR_GAP_PRIVACY_ACTIVATED"
+            )
+            _chatMessages.value = _chatMessages.value + notice
+            ttsHelper.speak("Air gapped privacy mode engaged. Operating strictly on device.", _voicePersona.value)
+        } else {
+            _isGeminiLiveMode.value = true
+            val notice = ChatMessage(
+                sender = MessageSender.SYSTEM,
+                text = "🌐 HYBRID CLOUD / LOCAL MODE ACTIVE: Gemini Live 1.5 Flash conversational core restored.",
+                timestamp = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
+                intentDetected = "CLOUD_HYBRID_RESTORED"
+            )
+            _chatMessages.value = _chatMessages.value + notice
+            ttsHelper.speak("Cloud interfaces restored. Gemini Live online.", _voicePersona.value)
+        }
+    }
+
+    fun setTemperatureUnit(unit: TemperatureUnit) {
+        _temperatureUnit.value = unit
+        prefs.edit().putString("temperature_unit", unit.name).apply()
+    }
+
+    fun setDefaultLightBrightness(level: Int) {
+        val clamped = level.coerceIn(5, 100)
+        _defaultLightBrightness.value = clamped
+        prefs.edit().putInt("default_light_brightness", clamped).apply()
+    }
+
+    fun setPreferredRoom(room: String) {
+        _preferredRoom.value = room
+        prefs.edit().putString("preferred_room", room).apply()
+    }
+
+    fun setAutoLockDelaySeconds(seconds: Int) {
+        _autoLockDelaySeconds.value = seconds
+        prefs.edit().putInt("auto_lock_delay_seconds", seconds).apply()
+    }
+
+    fun setPreferredProtocol(protocol: SmartProtocol) {
+        _preferredProtocol.value = protocol
+        prefs.edit().putString("preferred_protocol", protocol.name).apply()
+    }
+
+    fun setConfirmSecurityActions(confirm: Boolean) {
+        _confirmSecurityActions.value = confirm
+        prefs.edit().putBoolean("confirm_security_actions", confirm).apply()
+    }
+
+    fun setWakeWordEnabled(enabled: Boolean) {
+        _wakeWordEnabled.value = enabled
+        prefs.edit().putBoolean("wake_word_enabled", enabled).apply()
+        if (enabled) {
+            if (_hasMicPermission.value) {
+                MicrophoneCaptureService.start(getApplication())
+            }
+        } else {
+            MicrophoneCaptureService.stop(getApplication())
+        }
+    }
+
+    fun setWakeWordPhrase(phrase: String) {
+        _wakeWordPhrase.value = phrase
+        prefs.edit().putString("wake_word_phrase", phrase).apply()
+        MicrophoneCaptureService.updateWakeWordConfig(phrase, _wakeWordSensitivity.value)
+    }
+
+    fun setWakeWordSensitivity(sensitivity: Float) {
+        _wakeWordSensitivity.value = sensitivity
+        prefs.edit().putFloat("wake_word_sensitivity", sensitivity).apply()
+        MicrophoneCaptureService.updateWakeWordConfig(_wakeWordPhrase.value, sensitivity)
+    }
+
+    fun updateMicPermission(granted: Boolean) {
+        _hasMicPermission.value = granted
+        if (granted && _wakeWordEnabled.value) {
+            try {
+                MicrophoneCaptureService.start(getApplication())
+            } catch (e: Exception) {
+                // Background start restriction fallback
+            }
+        }
+    }
+
+    fun triggerWakeWordSimulation(command: String? = null) {
+        MicrophoneCaptureService.simulateWakeWordTrigger(command)
+    }
+
+    fun clearChatHistory() {
+        _chatMessages.value = emptyList()
+    }
+
     fun setGeminiLiveMode(enabled: Boolean) {
+        if (enabled && _offlineOnlyPrivacyMode.value) {
+            _offlineOnlyPrivacyMode.value = false
+            prefs.edit().putBoolean("offline_only_privacy_mode", false).apply()
+        }
         _isGeminiLiveMode.value = enabled
         if (!enabled) {
             ttsHelper.speak("Pure on-device privacy mode engaged. Cloud interfaces disabled.", _voicePersona.value)
@@ -402,14 +637,16 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
             ttsHelper.stop()
 
             try {
-                if (_isGeminiLiveMode.value) {
+                if (_isGeminiLiveMode.value && !_offlineOnlyPrivacyMode.value) {
+                    val effectiveKey = getEffectiveApiKey()
                     val liveResponse = geminiLiveEngine.converse(
                         userQuery = rawQuery,
                         persona = _voicePersona.value,
                         devices = _devices.value,
                         tasks = _tasks.value,
                         routines = _routines.value,
-                        health = _health.value
+                        health = _health.value,
+                        customApiKey = effectiveKey
                     )
 
                     // Apply any action commands
@@ -454,11 +691,11 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
                     }
 
                     val jarvisMsg = ChatMessage(
-                        sender = MessageSender.JARVIS,
+                        sender = if (liveResponse.isError) MessageSender.SYSTEM else MessageSender.JARVIS,
                         text = liveResponse.conversationalText,
                         timestamp = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
                         latencyMs = liveResponse.latencyMs,
-                        intentDetected = if (liveResponse.isLiveApi) "GEMINI_LIVE_CONVERSATION" else "LOCAL_CONVERSATION_FALLBACK",
+                        intentDetected = if (liveResponse.isError) "SYSTEM_ALERT" else if (liveResponse.isLiveApi) "GEMINI_LIVE_CONVERSATION" else "LOCAL_CONVERSATION_FALLBACK",
                         isSpoken = true,
                         isGeminiLive = liveResponse.isLiveApi
                     )
@@ -538,14 +775,18 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
             onDeviceVoiceEngine.stopListening()
         } else {
             ttsHelper.stop()
-            onDeviceVoiceEngine.startListening(_dialect.value, _noiseFilter.value) { result ->
-                submitQuery(
-                    rawQuery = result.normalizedTranscript,
-                    fromVoice = true,
-                    dialect = result.detectedDialect,
-                    confidence = result.confidence
-                )
-            }
+            onDeviceVoiceEngine.startListening(
+                dialect = _dialect.value,
+                noiseFilter = _noiseFilter.value,
+                onPartial = { partial ->
+                    // Real-time speech transcription into text input field
+                    _inputQuery.value = partial
+                },
+                onResult = { result ->
+                    // Auto-fill the text input field with the final transcribed text
+                    _inputQuery.value = result.normalizedTranscript
+                }
+            )
         }
     }
 

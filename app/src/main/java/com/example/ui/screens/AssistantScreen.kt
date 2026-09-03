@@ -3,6 +3,12 @@ package com.example.ui.screens
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -39,6 +45,7 @@ import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -58,6 +65,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -105,7 +113,20 @@ fun AssistantScreen(
     val voiceAmplitude by viewModel.voiceAmplitude.collectAsState()
 
     val listState = rememberLazyListState()
-    var inputQuery by remember { mutableStateOf("") }
+    val inputQuery by viewModel.inputQuery.collectAsState()
+    val customApiKey by viewModel.customApiKey.collectAsState()
+
+    // Microphone Pulse Animation while listening
+    val micInfiniteTransition = rememberInfiniteTransition(label = "mic_listening_pulse")
+    val micScale by micInfiniteTransition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = if (isListening) 1.15f else 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "mic_scale"
+    )
 
     // Auto scroll to newest messages
     LaunchedEffect(chatMessages.size) {
@@ -371,26 +392,27 @@ fun AssistantScreen(
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Microphone Toggle Button with Live Pulse Ring
+                // Microphone Toggle Button with Live Pulse Ring & Visual Feedback
                 IconButton(
                     onClick = {
                         viewModel.toggleVoiceListening()
                     },
                     modifier = Modifier
                         .size(44.dp)
+                        .scale(if (isListening) micScale else 1.0f)
                         .clip(CircleShape)
-                        .background(if (isListening) JarvisAmber.copy(alpha = 0.25f) else JarvisSurfaceElevated)
+                        .background(if (isListening) Color(0xFFFF334B).copy(alpha = 0.25f) else JarvisSurfaceElevated)
                         .border(
-                            1.dp,
-                            if (isListening) JarvisAmber else JarvisCyan.copy(alpha = 0.4f),
+                            if (isListening) 1.5.dp else 1.dp,
+                            if (isListening) Color(0xFFFF334B) else JarvisCyan.copy(alpha = 0.4f),
                             CircleShape
                         )
                         .testTag("mic_voice_button")
                 ) {
                     Icon(
                         imageVector = if (isListening) Icons.Default.Mic else Icons.Default.MicNone,
-                        contentDescription = "Voice Input",
-                        tint = if (isListening) JarvisAmber else JarvisCyan
+                        contentDescription = if (isListening) "Listening... Tap to stop" else "Voice Input",
+                        tint = if (isListening) Color(0xFFFF334B) else JarvisCyan
                     )
                 }
 
@@ -399,12 +421,12 @@ fun AssistantScreen(
                 // Query Text Field
                 OutlinedTextField(
                     value = inputQuery,
-                    onValueChange = { inputQuery = it },
+                    onValueChange = { viewModel.updateInputQuery(it) },
                     placeholder = {
                         Text(
-                            text = if (isGeminiLiveMode) "Speak or ask Gemini Live anything..." else "Ask Jarvis or give smart home command...",
+                            text = if (isListening) "Listening to voice... transcribing" else if (isGeminiLiveMode) "Ask J.A.R.V.I.S. (Gemini 1.5 Flash)..." else "Ask Jarvis or give smart home command...",
                             fontSize = 13.sp,
-                            color = JarvisTextMuted
+                            color = if (isListening) Color(0xFFFF5252) else JarvisTextMuted
                         )
                     },
                     modifier = Modifier
@@ -422,8 +444,9 @@ fun AssistantScreen(
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = {
                         if (inputQuery.isNotBlank()) {
-                            viewModel.submitQuery(inputQuery)
-                            inputQuery = ""
+                            val q = inputQuery
+                            viewModel.updateInputQuery("")
+                            viewModel.submitQuery(q)
                         }
                     })
                 )
@@ -432,8 +455,9 @@ fun AssistantScreen(
                 IconButton(
                     onClick = {
                         if (inputQuery.isNotBlank()) {
-                            viewModel.submitQuery(inputQuery)
-                            inputQuery = ""
+                            val q = inputQuery
+                            viewModel.updateInputQuery("")
+                            viewModel.submitQuery(q)
                         }
                     },
                     modifier = Modifier
@@ -463,6 +487,8 @@ fun AssistantScreen(
             liveRmsDb = liveRmsDb,
             ambientNoiseFloorDb = ambientNoiseFloorDb,
             snrDb = snrDb,
+            apiKey = customApiKey,
+            onApiKeyChange = { viewModel.setCustomApiKey(it) },
             onGeminiLiveModeToggle = { viewModel.setGeminiLiveMode(it) },
             onSelectPersona = { viewModel.setVoicePersona(it) },
             onSelectDialect = { viewModel.setDialect(it) },
@@ -478,7 +504,7 @@ fun ChatMessageItem(
     onReplay: () -> Unit = {}
 ) {
     val isUser = message.sender == MessageSender.USER
-    val isSystem = message.sender == MessageSender.SYSTEM
+    val isSystem = message.sender == MessageSender.SYSTEM || message.intentDetected == "SYSTEM_ALERT" || message.text.startsWith("System Alert")
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -490,26 +516,35 @@ fun ChatMessageItem(
             verticalAlignment = Alignment.Bottom
         ) {
             if (!isUser) {
-                // Jarvis Avatar
+                // Jarvis / System Avatar
                 Box(
                     modifier = Modifier
                         .size(28.dp)
                         .clip(CircleShape)
-                        .background(JarvisSurfaceElevated)
+                        .background(if (isSystem) Color(0xFF3B1214) else JarvisSurfaceElevated)
                         .border(
                             1.dp,
-                            if (message.isGeminiLive) Color(0xFFB388FF) else JarvisCyan.copy(alpha = 0.5f),
+                            if (isSystem) Color(0xFFFF5252) else if (message.isGeminiLive) Color(0xFFB388FF) else JarvisCyan.copy(alpha = 0.5f),
                             CircleShape
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = if (message.isGeminiLive) "G" else "J",
-                        color = if (message.isGeminiLive) Color(0xFFB388FF) else JarvisCyan,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
+                    if (isSystem) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = "System Alert",
+                            tint = Color(0xFFFF5252),
+                            modifier = Modifier.size(14.dp)
+                        )
+                    } else {
+                        Text(
+                            text = if (message.isGeminiLive) "G" else "J",
+                            color = if (message.isGeminiLive) Color(0xFFB388FF) else JarvisCyan,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.width(8.dp))
             }
@@ -519,7 +554,7 @@ fun ChatMessageItem(
                 colors = CardDefaults.cardColors(
                     containerColor = when {
                         isUser -> JarvisCobalt
-                        isSystem -> JarvisSurfaceVariant
+                        isSystem -> Color(0xFF221115)
                         message.isGeminiLive -> Color(0xFF161426)
                         else -> JarvisSurfaceElevated
                     }
@@ -534,6 +569,7 @@ fun ChatMessageItem(
                     0.8.dp,
                     when {
                         isUser -> JarvisCobalt
+                        isSystem -> Color(0xFFFF5252).copy(alpha = 0.65f)
                         message.isGeminiLive -> Color(0xFF7C4DFF).copy(alpha = 0.4f)
                         else -> JarvisBorder
                     }
@@ -543,7 +579,7 @@ fun ChatMessageItem(
                 Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
                     Text(
                         text = message.text,
-                        color = JarvisTextPrimary,
+                        color = if (isSystem) Color(0xFFFF8A80) else JarvisTextPrimary,
                         fontSize = 14.sp,
                         lineHeight = 20.sp
                     )
@@ -558,7 +594,15 @@ fun ChatMessageItem(
                         // Latency & Engine telemetry
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (!isUser) {
-                                if (message.isGeminiLive) {
+                                if (isSystem) {
+                                    Text(
+                                        text = "SYSTEM ALERT • J.A.R.V.I.S.",
+                                        fontSize = 9.sp,
+                                        color = Color(0xFFFF5252),
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                } else if (message.isGeminiLive) {
                                     Text(
                                         text = "GEMINI LIVE • ${message.latencyMs ?: 240}ms",
                                         fontSize = 9.sp,

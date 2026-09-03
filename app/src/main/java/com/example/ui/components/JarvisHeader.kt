@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,6 +41,7 @@ import com.example.ui.theme.JarvisBorder
 import com.example.ui.theme.JarvisCyan
 import com.example.ui.theme.JarvisEmerald
 import com.example.ui.theme.JarvisSurface
+import com.example.ui.theme.JarvisSurfaceElevated
 import com.example.ui.theme.JarvisTextPrimary
 import com.example.ui.theme.JarvisTextSecondary
 
@@ -49,7 +51,8 @@ fun JarvisHeader(
     isOnline: Boolean = true,
     isSpeaking: Boolean = false,
     onToggleOnline: () -> Unit = {},
-    onStopSpeaking: () -> Unit = {}
+    onStopSpeaking: () -> Unit = {},
+    onOpenSettings: (() -> Unit)? = null
 ) {
     Surface(
         modifier = modifier
@@ -132,6 +135,25 @@ fun JarvisHeader(
                             tint = if (isOnline) JarvisEmerald else JarvisAmber,
                             modifier = Modifier.size(18.dp)
                         )
+                    }
+
+                    onOpenSettings?.let { openSettings ->
+                        Spacer(modifier = Modifier.width(6.dp))
+                        IconButton(
+                            onClick = openSettings,
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(JarvisSurfaceElevated)
+                                .border(1.dp, JarvisBorder, CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "System Preferences",
+                                tint = JarvisCyan,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
             }

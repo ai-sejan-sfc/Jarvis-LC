@@ -51,6 +51,7 @@ class OnDeviceVoiceRecognitionEngine(
     private var currentNoiseFilter: NoiseFilterMode = NoiseFilterMode.ADAPTIVE_AUTO
 
     private var simulatedListeningJob: Job? = null
+    private var onPartialResultCallback: ((String) -> Unit)? = null
     private var onFinalResultCallback: ((NormalizedVoiceResult) -> Unit)? = null
 
     init {
@@ -120,6 +121,7 @@ class OnDeviceVoiceRecognitionEngine(
                         val partials = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         partials?.firstOrNull()?.let { text ->
                             _partialTranscript.value = text
+                            onPartialResultCallback?.invoke(text)
                         }
                     }
 
@@ -135,10 +137,12 @@ class OnDeviceVoiceRecognitionEngine(
     fun startListening(
         dialect: DialectProfile,
         noiseFilter: NoiseFilterMode,
+        onPartial: ((String) -> Unit)? = null,
         onResult: (NormalizedVoiceResult) -> Unit
     ) {
         currentDialect = dialect
         currentNoiseFilter = noiseFilter
+        onPartialResultCallback = onPartial
         onFinalResultCallback = onResult
         _partialTranscript.value = ""
         _isListening.value = true
@@ -203,6 +207,7 @@ class OnDeviceVoiceRecognitionEngine(
         )
 
         _partialTranscript.value = normalized.normalizedTranscript
+        onPartialResultCallback?.invoke(normalized.normalizedTranscript)
         onFinalResultCallback?.invoke(normalized)
     }
 
@@ -255,7 +260,9 @@ class OnDeviceVoiceRecognitionEngine(
                 if (!isActive || !_isListening.value) break
 
                 partialAccumulator.append(word).append(" ")
-                _partialTranscript.value = partialAccumulator.toString().trim()
+                val currentText = partialAccumulator.toString().trim()
+                _partialTranscript.value = currentText
+                onPartialResultCallback?.invoke(currentText)
 
                 // Acoustic amplitude & SNR simulation
                 val peakRms = (-15..8).random().toFloat()

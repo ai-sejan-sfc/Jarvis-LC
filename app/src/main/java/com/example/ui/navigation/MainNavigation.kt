@@ -17,12 +17,14 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Security
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -48,6 +50,7 @@ import com.example.ui.screens.CalendarScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.RoutinesScreen
 import com.example.ui.screens.SecurityPluginsScreen
+import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.SmartHomeScreen
 import com.example.ui.theme.JarvisBackground
 import com.example.ui.theme.JarvisBorder
@@ -68,7 +71,8 @@ enum class JarvisDestination(
     CALENDAR("Tasks", Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth),
     ROUTINES("Routines", Icons.Filled.Repeat, Icons.Outlined.Repeat),
     HEALTH("Health", Icons.Filled.Dashboard, Icons.Outlined.Dashboard),
-    SECURITY("Vault", Icons.Filled.Security, Icons.Outlined.Security)
+    SECURITY("Vault", Icons.Filled.Security, Icons.Outlined.Security),
+    SETTINGS("Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
 }
 
 @Composable
@@ -88,7 +92,8 @@ fun MainNavigation(
                 isOnline = syncState.isOnline,
                 isSpeaking = isSpeaking,
                 onToggleOnline = { viewModel.toggleOnlineSync() },
-                onStopSpeaking = { viewModel.stopSpeaking() }
+                onStopSpeaking = { viewModel.stopSpeaking() },
+                onOpenSettings = { currentDestination = JarvisDestination.SETTINGS }
             )
         },
         bottomBar = {
@@ -148,6 +153,7 @@ fun MainNavigation(
                     JarvisDestination.ROUTINES -> RoutinesScreen(viewModel = viewModel)
                     JarvisDestination.HEALTH -> DashboardScreen(viewModel = viewModel)
                     JarvisDestination.SECURITY -> SecurityPluginsScreen(viewModel = viewModel)
+                    JarvisDestination.SETTINGS -> SettingsScreen(viewModel = viewModel)
                 }
             }
         }
