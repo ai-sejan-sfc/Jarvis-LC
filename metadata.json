@@ -1,0 +1,7 @@
+{
+  "name": "Jarvis Assistant",
+  "description": "Privacy-first on-device smart home assistant, daily calendar manager, voice briefings, automated routines, and encrypted system dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

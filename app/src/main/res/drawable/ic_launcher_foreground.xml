@@ -1,0 +1,58 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Outer Arc segments -->
+    <path
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M 32,32 A 31,31 0 0 1 76,32" />
+    <path
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M 85,54 A 31,31 0 0 1 76,76" />
+    <path
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M 64,84 A 31,31 0 0 1 44,84" />
+    <path
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M 32,76 A 31,31 0 0 1 23,54" />
+
+    <!-- Inner glowing ring -->
+    <path
+        android:strokeColor="#80D8FF"
+        android:strokeWidth="2.2"
+        android:fillColor="#1500E5FF"
+        android:pathData="M 54,34 A 20,20 0 1 0 54,74 A 20,20 0 1 0 54,34" />
+
+    <!-- Arc Reactor Core Triangular Nodes -->
+    <path
+        android:fillColor="#00E5FF"
+        android:pathData="M 54,42 L 64,59 L 44,59 Z" />
+
+    <!-- Center Bright AI Core Dot -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 54,50 A 4,4 0 1 0 54,58 A 4,4 0 1 0 54,50" />
+
+    <!-- Radial Circuit Rays -->
+    <path
+        android:strokeColor="#80D8FF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M 54,23 L 54,29 M 54,79 L 54,85 M 23,54 L 29,54 M 79,54 L 85,54" />
+</vector>
+
